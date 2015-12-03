@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Configuration RootNamespace="MyCompany.Modules">
+  <KnownNodes>
+    <Node type="MyCompany.Modules.FSMlearnerModule.FSMlearnerNode" CanBeAdded="true"/>
+  </KnownNodes>
+</Configuration>
