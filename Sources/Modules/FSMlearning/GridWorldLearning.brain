@@ -8,40 +8,26 @@
         </Parameters>
         <ActionCount>6</ActionCount>
         <DataFolder></DataFolder>
-        <Location X="562" Y="95" />
+        <Location X="573" Y="61" />
         <Tasks>
-          <Task Enabled="True" PropertyName="NewModuleTask" yaxlib:realtype="MyCompany.Modules.GridWorldMapperModule.GridWorldMapperTask" />
+          <Task Enabled="True" PropertyName="MapperTask" yaxlib:realtype="MyCompany.Modules.GridWorldMapperModule.GridWorldMapperTask" />
         </Tasks>
       </GridWorldMapperNode>
-      <MyUserInput LoadOnStart="False" SaveOnStop="False" Id="13" Name="Node_13" yaxlib:realtype="GoodAI.Core.Nodes.MyUserInput">
-        <IO>
-          <OutputSize>1</OutputSize>
-        </IO>
-        <ColumnHint>1</ColumnHint>
-        <MinValue>-1</MinValue>
-        <MaxValue>8</MaxValue>
-        <UserInputStr>-1</UserInputStr>
-        <ConvertToBinary>False</ConvertToBinary>
-        <DataFolder></DataFolder>
-        <Location X="221" Y="14" />
-        <Tasks>
-          <Task Enabled="True" PropertyName="GenerateInput" yaxlib:realtype="GoodAI.Core.Nodes.MyUserInput+MyTransferTask" />
-        </Tasks>
-      </MyUserInput>
       <FSMlearnerNode LoadOnStart="False" SaveOnStop="False" Id="14" Name="Node_14" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerNode">
         <Parameters>
           <ParameterProperty>True</ParameterProperty>
         </Parameters>
         <AlphabetSize>5</AlphabetSize>
+        <MaxExtraDepth>1</MaxExtraDepth>
         <DataFolder></DataFolder>
-        <Location X="304" Y="151" />
+        <Location X="612" Y="308" />
         <Tasks>
-          <Task Enabled="True" PropertyName="NewModuleTask" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTask" />
+          <Task Enabled="True" PropertyName="LearningTask" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTask" />
         </Tasks>
       </FSMlearnerNode>
     </Children>
     <LayoutProperties Zoom="0.7071068">
-      <Translation X="-129" Y="-43" />
+      <Translation X="-138" Y="-87" />
     </LayoutProperties>
     <GroupInputNodes>
       <MyParentInput ParentInputIndex="0" Id="1" Name="Visual">
@@ -221,8 +207,8 @@
   </Observers>
   <UsedModules>
     <Module Name="GoodAI.NewModuleWithSourceDeps.dll" Version="1" />
-    <Module Name="GoodAI.Platform.Core.dll" Version="9" />
     <Module Name="GoodAI.FSM.dll" Version="1" />
+    <Module Name="GoodAI.Platform.Core.dll" Version="9" />
     <Module Name="GoodAI.BasicNodes.dll" Version="12" />
   </UsedModules>
 </Project>

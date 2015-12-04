@@ -15,8 +15,45 @@ namespace MyCompany.Modules.GridWorldMapperModule
     /// <author>Michal Soucha</author>
     /// <meta></meta>
     /// <status>TEST</status>
-    /// <summary>A summary of the node's function</summary>
-    /// <description>A more detailed description.</description>
+    /// <summary>Node provides a response of MyGridWorld on given input.</summary>
+    /// <description>
+    /// An interlayer node between MyGridWorld and a learner.
+    /// The learner asks for a response on given action.
+    /// GridWorldMapper translates the action to MyGridWorld and returns back a response of the world.
+    /// 
+    /// The learner apply an action:
+    /// <ul>
+    ///     <li>-1: Reset to the agent's initial position,</li>
+    ///     <li>0: Do nothiong,</li>
+    ///     <li>1,2,3,4: Move in 4 directions (left,right,up,down),</li>
+    ///     <li>5: Control controllable objects.</li>
+    /// </ul>
+    /// 
+    /// Values of WorldResponse are:
+    /// <ul>
+    ///     <li>-2: Action cannot be applied in this state, e.g. there is a wall,</li>
+    ///     <li>-1: Waiting for a response, i.e. a notification for the learner to wait,</li>
+    ///     <li>0: There is nothing on the current tale where agent is,</li>
+    ///     <li>>0: There is an observable thing, e.g. a light or a switch.</li>
+    /// </ul>
+    /// 
+    /// <h3>Inputs</h3>
+    /// <ul>
+    ///     <li> <b>ActionInput:</b> An integer defining agent's next action.</li>
+    ///     <li> <b>WorldVariables:</b> Vector GlobalOutput of MyGridWorld used for determining WorldResponse.</li>
+    /// </ul>
+    /// 
+    /// <h3>Outputs</h3>
+    /// <ul>
+    ///     <li> <b>ActionOutput:</b> Vector indication Action for agent of MyGridWorld.</li>
+    ///     <li> <b>WorldResponse:</b> An integer representing the response of MyGridWorld to the previous agent action.</li>
+    /// </ul>
+    /// 
+    /// <h3>Parameters</h3>
+    /// <ul>
+    ///     <li><b>ActionCount:</b> A number of possible agent's actions.</li>
+    /// </ul>
+    /// </description>
     public class GridWorldMapperNode : MyWorkingNode
     {
         [MyInputBlock(0)]
@@ -66,11 +103,18 @@ namespace MyCompany.Modules.GridWorldMapperModule
             validator.AssertError(ActionInput.Count == 1, this, "Action input must be one float.");
         }
 
-        public GridWorldMapperTask NewModuleTask { get; private set; }
+        public GridWorldMapperTask MapperTask { get; private set; }
     }
 
     /// <summary>
-    /// The task that pushes the current simulation step into the output block.
+    /// A loop of 4 simulation steps:
+    /// <ol>
+    /// <li>sets no action for agent,</li>
+    /// <li>checks agent's current tale and sets WorldResponse,</li>
+    /// <li>sets WorldResponse to -1, i.e. the learner should read the response in this simulation step,</li>
+    /// <li>read and translate a desired action of the learner to the world.</li>
+    /// </ol>
+    /// If the action -1 (reset) is applied, the agent is transfered to his initial position and the loop starts again.
     /// </summary>
     public class GridWorldMapperTask : MyTask<GridWorldMapperNode>
     {
@@ -144,9 +188,9 @@ namespace MyCompany.Modules.GridWorldMapperModule
                 Owner.ActionInput.SafeCopyToHost();
                 //int action = (int)Math.Round(Owner.ActionInput.Host[0]);
                 int action = Owner.ActionInput.Host[0];
-                if (action < -1 || action > 5)
+                if (action < -1 || action >= Owner.ActionCount)
                 {
-                    MyLog.WARNING.WriteLine("Action needs to be in range [-1, 5]");
+                    MyLog.WARNING.WriteLine("Action needs to be in range [-1, "+(Owner.ActionCount-1)+"]");
                     return;
                 }
                 if (action == -1) { // reset
