@@ -176,8 +176,8 @@
       <ViewMode>Fit_2D</ViewMode>
       <KeepRatio>True</KeepRatio>
       <Window>
-        <Location X="509" Y="10" />
-        <Size Width="512" Height="623" />
+        <Location X="509" Y="423" />
+        <Size Width="512" Height="230" />
       </Window>
       <AutosaveSnapshop>False</AutosaveSnapshop>
       <BilinearFiltering>False</BilinearFiltering>
@@ -192,8 +192,8 @@
       <ViewMode>Fit_2D</ViewMode>
       <KeepRatio>True</KeepRatio>
       <Window>
-        <Location X="999" Y="141" />
-        <Size Width="179" Height="524" />
+        <Location X="1018" Y="280" />
+        <Size Width="179" Height="370" />
       </Window>
       <AutosaveSnapshop>False</AutosaveSnapshop>
       <BilinearFiltering>False</BilinearFiltering>

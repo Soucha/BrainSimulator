@@ -332,28 +332,34 @@ namespace MyCompany.Modules.FSMlearnerModule
             {
                 Owner.FSMtransition.Host[i + 1] = i;
             }
+            string dotText = "digraph {" + Environment.NewLine;
             for (int i = 0; i < sEntries.Count; i++)
             {
                 Owner.FSMoutput.Host[(i + 1) * 2] = i;
-                Owner.FSMoutput.Host[(i + 1) * 2 + 1] =
-                    (int)table[(ArrayList)sEntries[i]][0];
+                int output = (int)table[(ArrayList)sEntries[i]][0];
+                Owner.FSMoutput.Host[(i + 1) * 2 + 1] = output;
+                dotText += i + " [label=\"" + i + "\n" + output + "\"];" + Environment.NewLine;
                 Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1)] = i;
                 for (int j = 0; j < Owner.AlphabetSize; j++)
                 {
                     ArrayList nextState = new ArrayList((ArrayList)sEntries[i]);
                     nextState.Add(j);
+                    Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1) + j + 1] = -1;
                     for (int k = 0; k < sEntries.Count; k++)
                     {
                         if (!isDistinguished(nextState, (ArrayList)sEntries[k]))
                         {
                             Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1) + j + 1] = k;
+                            dotText += i + " -> " + k + " [label=\""+j+"\"];" + Environment.NewLine;
                             break;
                         }
                     }
                 }
             }
+            dotText += "}";
             Owner.FSMoutput.SafeCopyToDevice();
             Owner.FSMtransition.SafeCopyToDevice();
+            System.IO.File.WriteAllText(@"outputDOT.gv.txt", dotText);
         }
 
         private void updateTests()
