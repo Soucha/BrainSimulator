@@ -22,7 +22,8 @@
         <DataFolder></DataFolder>
         <Location X="612" Y="308" />
         <Tasks>
-          <Task Enabled="True" PropertyName="LearningTask" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTask" />
+          <Task Enabled="False" PropertyName="LearningTask" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTask" />
+          <Task Enabled="True" PropertyName="LearningTaskOld" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTaskDummy" />
         </Tasks>
       </FSMlearnerNode>
     </Children>
