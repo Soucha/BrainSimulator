@@ -78,7 +78,8 @@ namespace MyCompany.Modules.FSMlearnerModule
             public int output = -1;
             public int state = -1;
             public int refNode = -1;
-            public ArrayList refNodes;
+            public HashSet<int> refNodes;
+            //public HashSet<int> indistNodes;
 
             public int parentNode, parentInput;
             public int position;
@@ -90,7 +91,8 @@ namespace MyCompany.Modules.FSMlearnerModule
                 this.parentNode = parent;
                 this.parentInput = input;
                 this.position = position;
-                this.refNodes = new ArrayList();
+                this.refNodes = new HashSet<int>();
+                //this.indistNodes = new HashSet<int>();
             }
         }
 
@@ -102,6 +104,7 @@ namespace MyCompany.Modules.FSMlearnerModule
         private bool waitingForResponse;
         private ArrayList tmpSucc;
         private int currentNode;
+        private int lastStateNode;
         private int queryInput;
 
         public override void Init(int nGPU)
@@ -118,16 +121,28 @@ namespace MyCompany.Modules.FSMlearnerModule
             tmpSucc = new ArrayList(Owner.AlphabetSize);
             for (int i = 0; i < Owner.AlphabetSize; i++)
             {
-                ((Node)op[0]).succ.Add(createNewNode(0, i));
-                tests.Add(new ArrayList() { i });
                 tmpSucc.Add(-1);
             }
+            Owner.FSMoutput.SafeCopyToHost();
+            Owner.FSMoutput.Host[0] = -1;
+            Owner.FSMoutput.Host[1] = -1;
+            Owner.FSMoutput.SafeCopyToDevice();
+            Owner.FSMtransition.SafeCopyToHost();
+            Owner.FSMtransition.Host[0] = -1;
+            for (int i = 0; i < Owner.AlphabetSize; i++)
+            {
+                ((Node)op[0]).succ.Add(createNewNode(0, i));
+                tests.Add(new ArrayList() { i });
+                Owner.FSMtransition.Host[i + 1] = i;
+            }
+            Owner.FSMtransition.SafeCopyToDevice();
             testedSequence = -1;
             testedState = 0;
             updateTests();
 
             currentNode = 0;
             queryInput = -1;
+            lastStateNode = -1;
             waitingForResponse = true;
         }
 
@@ -256,13 +271,25 @@ namespace MyCompany.Modules.FSMlearnerModule
         private void saveResponse(int response)
         {
             if (queryInput == -1) {// reset, i.e. output of the initial state
-                ((Node)op[0]).output = response;
+                if (((Node)op[0]).output == -1)
+                {
+                    ((Node)op[0]).output = response;
+                    conjectureFSM();
+                }
                 currentNode = 0;
+                //lastStateNode = -1;
                 return;
             }
             
-            // check successor
             int nextNode = (int)((Node)op[currentNode]).succ[queryInput];
+            /*
+            if ((lastStateNode == -1) && ((((Node)op[nextNode]).refNode == -1) ||
+                (((Node)op[nextNode]).refNode != ((Node)op[nextNode]).position)))
+            {
+                lastStateNode = currentNode;
+            }
+            */
+            // check successor
             if (((Node)op[nextNode]).output == -1) // queried for the first time
             {
                 ((Node)op[nextNode]).output = response;
@@ -270,7 +297,7 @@ namespace MyCompany.Modules.FSMlearnerModule
                 {
                     if (((Node)op[(int)states[state]]).output == response)
                     {
-                        ((Node)op[nextNode]).refNodes.Add(states[state]);
+                        ((Node)op[nextNode]).refNodes.Add((int)states[state]);
                     }
                 }
                 if (((Node)op[nextNode]).refNodes.Count == 0) // new state
@@ -279,9 +306,35 @@ namespace MyCompany.Modules.FSMlearnerModule
                 } 
                 else if (((Node)op[nextNode]).refNodes.Count == 1) // new state
                 {
-                    ((Node)op[nextNode]).refNode = (int)((Node)op[nextNode]).refNodes[0];
+                    ((Node)op[nextNode]).refNode = ((Node)op[nextNode]).refNodes.First();
+                    // add transition
+                    ((Node)op[nextNode]).state = ((Node)op[((Node)op[nextNode]).refNode]).state;
+                    if (((Node)op[currentNode]).position == ((Node)op[currentNode]).refNode)
+                    {
+                        conjectureFSM();
+                    }
                 }
-                
+                /*
+                foreach (Node node in op)
+                {
+                    if ((node.output != -1) && (node.position != nextNode))
+                    {
+                        if (node.output == response)
+                        {
+                            ((Node)op[nextNode]).indistNodes.Add(node.position);
+                            if (newState)
+                            {
+                                node.refNodes.Add(nextNode);
+                            }
+                            else
+                            {
+                                node.indistNodes.Add(nextNode);
+                            }
+                        }
+                        
+                    }
+                }
+                */
                 // check current Node
                 checkNode(currentNode, queryInput);
 
@@ -293,6 +346,57 @@ namespace MyCompany.Modules.FSMlearnerModule
             }
         }
 
+        private void conjectureFSM()
+        {
+            if (Owner.numStates != states.Count)
+            {
+                Owner.numStates = states.Count;
+                Owner.FSMoutput.FreeDevice();
+                Owner.FSMoutput.FreeHost();
+                Owner.FSMtransition.FreeDevice();
+                Owner.FSMtransition.FreeHost();
+                Owner.UpdateMemoryBlocks();
+                Owner.FSMoutput.SafeCopyToHost();
+                Owner.FSMoutput.Host[0] = -1;
+                Owner.FSMoutput.Host[1] = -1;
+                Owner.FSMtransition.SafeCopyToHost();
+                Owner.FSMtransition.Host[0] = -1;
+                for (int i = 0; i < Owner.AlphabetSize; i++)
+                {
+                    Owner.FSMtransition.Host[i + 1] = i;
+                }
+            }
+            string dotText = "digraph {" + Environment.NewLine;
+            for (int i = 0; i < states.Count; i++)
+            {
+                Node stateNode = (Node)op[(int)states[i]];
+                Owner.FSMoutput.Host[(i + 1) * 2] = i;
+                int output = stateNode.output;
+                Owner.FSMoutput.Host[(i + 1) * 2 + 1] = output;
+                dotText += i + " [label=\"" + i + "\n" + output + "\"];" + Environment.NewLine;
+                Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1)] = i;
+                for (int j = 0; j < Owner.AlphabetSize; j++)
+                {
+                    if (((int)stateNode.succ[j] != -1) &&
+                        (((Node)op[(int)stateNode.succ[j]]).state != -1))
+                    {
+                        Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1) + j + 1] = 
+                            ((Node)op[(int)stateNode.succ[j]]).state;
+                        dotText += i + " -> " + ((Node)op[(int)stateNode.succ[j]]).state + 
+                            " [label=\"" + j + "\"];" + Environment.NewLine;
+                    }
+                    else
+                    {
+                        Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1) + j + 1] = -1;
+                    }
+                }
+            }
+            dotText += "}";
+            Owner.FSMoutput.SafeCopyToDevice();
+            Owner.FSMtransition.SafeCopyToDevice();
+            System.IO.File.WriteAllText(@"outputDOT.gv.txt", dotText);
+        }
+
         private void checkNode(int node, int queryInput)
         {
             if (((Node)op[node]).position == ((Node)op[node]).refNode) // state
@@ -300,21 +404,40 @@ namespace MyCompany.Modules.FSMlearnerModule
                 return;
             }
             bool checkPrev = false;
-            for (int i = ((Node)op[node]).refNodes.Count-1; i >= 0; i--)
-			{
-                if (isDistinguished(node, (int)((Node)op[node]).refNodes[i], queryInput)) {
-                    ((Node)op[node]).refNodes.RemoveAt(i);
+            List<int> removeNodes = new List<int>(((Node)op[node]).refNodes.Count);
+            foreach (int refNode in ((Node)op[node]).refNodes)
+            {
+                if (isDistinguished(node, refNode, queryInput))
+                {
+                    //((Node)op[node]).refNodes.Remove(refNode);
+                    removeNodes.Add(refNode);
                     checkPrev = true;
                 }
-			}
+            }
+            ((Node)op[node]).refNodes.ExceptWith(removeNodes);
             if (((Node)op[node]).refNodes.Count == 0) // new state
             {
                 addNewState(node);
             }
-            else if (((Node)op[node]).refNodes.Count == 1)
+            else if (checkPrev && ((Node)op[node]).refNodes.Count == 1)
             {
-                ((Node)op[node]).refNode = (int)((Node)op[node]).refNodes[0];
+                ((Node)op[node]).refNode = ((Node)op[node]).refNodes.First();
+                ((Node)op[node]).state = ((Node)op[((Node)op[node]).refNode]).state;
+                if (((Node)op[((Node)op[node]).parentNode]).position == ((Node)op[((Node)op[node]).parentNode]).refNode)
+                {
+                    conjectureFSM();
+                }
             }
+            /*
+            foreach (int indistNode in ((Node)op[node]).indistNodes)
+            {
+                if (isDistinguished(node, indistNode, queryInput))
+                {
+                    ((Node)op[node]).indistNodes.Remove(indistNode);
+                    checkPrev = true;
+                }
+            }
+             * */
             if (checkPrev)
             {
                 checkNode(((Node)op[node]).parentNode, ((Node)op[node]).parentInput);
@@ -323,10 +446,11 @@ namespace MyCompany.Modules.FSMlearnerModule
 
         private bool isDistinguished(int node, int refNode, int input)
         {
-            int nextNode = (int)((Node)op[refNode]).succ[input];
-            if (nextNode == -1) return false;
-            if (((Node)op[node]).output != ((Node)op[nextNode]).output) return true;
-            // TODO
+            int nextRefNode = (int)((Node)op[refNode]).succ[input];
+            if (nextRefNode == -1) return false;
+            int nextNode = (int)((Node)op[node]).succ[input];
+            //if (!((Node)op[nextRefNode]).indistNodes.Contains(nextNode)) return true; 
+            if (!((Node)op[nextRefNode]).refNodes.Overlaps(((Node)op[nextNode]).refNodes)) return true;
             return false;
         }
 
@@ -334,7 +458,35 @@ namespace MyCompany.Modules.FSMlearnerModule
         {
             ((Node)op[node]).state = states.Count;
             ((Node)op[node]).refNode = node;
+            ((Node)op[node]).refNodes.Add(node);
             states.Add(node);
+
+            int output = ((Node)op[node]).output;
+            foreach (Node n in op)
+            {
+                if ((n.output == output) && (n.position != n.refNode)) 
+                {
+                    bool diff = false;
+                    for (int i = 0; i < Owner.AlphabetSize; i++)
+                    {
+                        if (((int)n.succ[i] != -1))
+                        {
+                            if (isDistinguished(n.position, node, i))
+                            {
+                                diff = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!diff)
+                    {
+                        n.refNodes.Add(node);
+                        n.state = -1;
+                        // TODO possible fault in transitions
+                    }
+                }
+            }
+            conjectureFSM();
 
             int addedTests = 0;
             foreach (ArrayList seq in oldTests)
