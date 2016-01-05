@@ -175,7 +175,7 @@ namespace MyCompany.Modules.FSMlearnerModule
                 testedState++;
                 if (testedState == states.Count)
                 {
-                    if (((ArrayList)tests[0]).Count >= Owner.MaxExtraDepth)
+                     if (((ArrayList)tests[0]).Count >= Owner.MaxExtraDepth)
                     {
                         oldTests.AddRange(tests);
                         tests.Clear();
@@ -205,6 +205,22 @@ namespace MyCompany.Modules.FSMlearnerModule
             {
                 int parent = ((Node)op[node]).parentNode;
                 ((Node)op[parent]).numTests += addedTests;
+                /*// test
+                int count = 0;
+                for (int i = 0; i < Owner.AlphabetSize; i++)
+                {
+                    int next = (int)((Node)op[parent]).succ[i];
+                    if (next >= 0)
+                    {
+                        if ((((Node)op[next]).numTests == 0) && (((Node)op[next]).output == -1)) count++;
+                        else count += ((Node)op[next]).numTests;
+                    }
+                }
+                if (count != ((Node)op[parent]).numTests)
+                {
+                    count = 0;
+                }
+                */
                 node = parent;
             }
         }
@@ -250,7 +266,7 @@ namespace MyCompany.Modules.FSMlearnerModule
             {
                 for (int i = 0; i < Owner.AlphabetSize; i++)
                 {
-                    if (((int)((Node)op[currentNode]).succ[i] != -1) && (
+                    if (((int)((Node)op[currentNode]).succ[i] >= 0) && (
                         ((int)((Node)op[(int)((Node)op[currentNode]).succ[i]]).output == -1) ||
                         ((int)((Node)op[(int)((Node)op[currentNode]).succ[i]]).numTests != 0)))
                     {
@@ -282,6 +298,18 @@ namespace MyCompany.Modules.FSMlearnerModule
             }
             
             int nextNode = (int)((Node)op[currentNode]).succ[queryInput];
+            if (response == -2)
+            {
+                ((Node)op[currentNode]).succ[queryInput] = -2;
+                
+                int num = ((Node)op[nextNode]).numTests;
+                updateNumTests(nextNode, 0, -1*((num == 0) ? 1 : num));
+                
+                checkNode(currentNode, queryInput);
+                
+                // TODO remove next nodes
+                return;
+            }
             /*
             if ((lastStateNode == -1) && ((((Node)op[nextNode]).refNode == -1) ||
                 (((Node)op[nextNode]).refNode != ((Node)op[nextNode]).position)))
@@ -293,6 +321,10 @@ namespace MyCompany.Modules.FSMlearnerModule
             if (((Node)op[nextNode]).output == -1) // queried for the first time
             {
                 ((Node)op[nextNode]).output = response;
+                if (((Node)op[nextNode]).numTests == 0)
+                {
+                    updateNumTests(nextNode, 0, -1);
+                }
                 for (int state = 0; state < states.Count; state++)
                 {
                     if (((Node)op[(int)states[state]]).output == response)
@@ -340,10 +372,12 @@ namespace MyCompany.Modules.FSMlearnerModule
 
             }
             currentNode = nextNode;
+            /*
             if (((Node)op[currentNode]).numTests == 0)
             {
                 updateNumTests(currentNode, 0, -1);
             }
+             */
         }
 
         private void conjectureFSM()
@@ -377,7 +411,12 @@ namespace MyCompany.Modules.FSMlearnerModule
                 Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1)] = i;
                 for (int j = 0; j < Owner.AlphabetSize; j++)
                 {
-                    if (((int)stateNode.succ[j] != -1) &&
+                    if ((int)stateNode.succ[j] == -2)
+                    {
+                        Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1) + j + 1] = i;
+                        dotText += i + " -> " + i + " [label=\"" + j + "\"];" + Environment.NewLine;
+                    }
+                    else if (((int)stateNode.succ[j] != -1) &&
                         (((Node)op[(int)stateNode.succ[j]]).state != -1))
                     {
                         Owner.FSMtransition.Host[(i + 1) * (Owner.AlphabetSize + 1) + j + 1] = 
@@ -447,8 +486,10 @@ namespace MyCompany.Modules.FSMlearnerModule
         private bool isDistinguished(int node, int refNode, int input)
         {
             int nextRefNode = (int)((Node)op[refNode]).succ[input];
-            if (nextRefNode == -1) return false;
+            if ((nextRefNode == -1) || ((nextRefNode != -2) && ((int)((Node)op[nextRefNode]).output == -1))) return false;
             int nextNode = (int)((Node)op[node]).succ[input];
+            if ((nextRefNode == -2) || (nextNode == -2))
+                return (nextRefNode != nextNode);
             //if (!((Node)op[nextRefNode]).indistNodes.Contains(nextNode)) return true; 
             if (!((Node)op[nextRefNode]).refNodes.Overlaps(((Node)op[nextNode]).refNodes)) return true;
             return false;
@@ -500,26 +541,31 @@ namespace MyCompany.Modules.FSMlearnerModule
         {
             int baseNode = node;
             int addedTests = 0;
-            bool incNumTests = false;
+            //bool incNumTests = false;
             for (int i = 0; i < seq.Count; i++)
             {
                 int next = (int)((Node)op[node]).succ[(int)seq[i]];
+                if (next == -2)
+                {
+                    return 0;
+                }
                 if (next == -1)
                 {
                     next = createNewNode(node, (int)seq[i]);
                     ((Node)op[node]).succ[(int)seq[i]] = next;
-                    if ((((Node)op[node]).numTests > 0) || (incNumTests))
+                    ((Node)op[node]).numTests++;
+                    if ((((Node)op[node]).numTests > 1) || ((addedTests == 0) && (((Node)op[node]).output != -1)))
                     {
                         addedTests = 1;
                         updateNumTests(node, baseNode, addedTests);
-                        incNumTests = false;
+                        //incNumTests = false;
                     }
-                    ((Node)op[node]).numTests++;
                 }
+                    /*
                 else if (((Node)op[next]).numTests == 0)
                 {
                     incNumTests = true;
-                }
+                }*/
                 node = next;
             }
             /*
