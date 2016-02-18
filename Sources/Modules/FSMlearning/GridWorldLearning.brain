@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Name="GridWorldLearning" xmlns:yaxlib="http://www.sinairv.com/yaxlib/">
+  <Network Sequential="False" LoadOnStart="False" SaveOnStop="False" Id="0" Name="Network">
+    <Children>
+      <GridWorldMapperNode LoadOnStart="False" SaveOnStop="False" Id="12" Name="Node_12" yaxlib:realtype="MyCompany.Modules.GridWorldMapperModule.GridWorldMapperNode">
+        <Parameters>
+          <ParameterProperty>True</ParameterProperty>
+        </Parameters>
+        <ActionCount>6</ActionCount>
+        <DataFolder></DataFolder>
+        <Location X="573" Y="61" />
+        <Tasks>
+          <Task Enabled="True" PropertyName="MapperTask" yaxlib:realtype="MyCompany.Modules.GridWorldMapperModule.GridWorldMapperTask" />
+        </Tasks>
+      </GridWorldMapperNode>
+      <FSMlearnerNode LoadOnStart="False" SaveOnStop="False" Id="14" Name="Node_14" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerNode">
+        <Parameters>
+          <ParameterProperty>True</ParameterProperty>
+        </Parameters>
+        <AlphabetSize>5</AlphabetSize>
+        <MaxExtraDepth>1</MaxExtraDepth>
+        <DataFolder></DataFolder>
+        <Location X="612" Y="308" />
+        <Tasks>
+          <Task Enabled="False" PropertyName="LearningTask" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTask" />
+          <Task Enabled="True" PropertyName="LearningTaskOld" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTaskDummy" />
+        </Tasks>
+      </FSMlearnerNode>
+    </Children>
+    <LayoutProperties Zoom="0.7071068">
+      <Translation X="-138" Y="-87" />
+    </LayoutProperties>
+    <GroupInputNodes>
+      <MyParentInput ParentInputIndex="0" Id="1" Name="Visual">
+        <Location X="50" Y="100" />
+      </MyParentInput>
+      <MyParentInput ParentInputIndex="1" Id="4" Name="AgentPosX">
+        <Location X="50" Y="250" />
+      </MyParentInput>
+      <MyParentInput ParentInputIndex="2" Id="5" Name="AgentPosY">
+        <Location X="50" Y="400" />
+      </MyParentInput>
+      <MyParentInput ParentInputIndex="3" Id="7" Name="Global">
+        <Location X="50" Y="550" />
+      </MyParentInput>
+      <MyParentInput ParentInputIndex="4" Id="8" Name="Variables">
+        <Location X="50" Y="700" />
+      </MyParentInput>
+      <MyParentInput ParentInputIndex="5" Id="9" Name="EgocentricVisual">
+        <Location X="50" Y="850" />
+      </MyParentInput>
+      <MyParentInput ParentInputIndex="6" Id="10" Name="MapSize">
+        <Location X="50" Y="1000" />
+      </MyParentInput>
+    </GroupInputNodes>
+    <GroupOutputNodes>
+      <MyOutput Id="11" Name="Action">
+        <Location X="800" Y="100" />
+      </MyOutput>
+    </GroupOutputNodes>
+    <DataFolder></DataFolder>
+    <Location />
+    <Connections>
+      <Connection From="12" To="11" FromIndex="0" ToIndex="0" />
+      <Connection From="14" To="12" FromIndex="0" ToIndex="0" />
+      <Connection From="7" To="12" FromIndex="0" ToIndex="1" />
+      <Connection From="12" To="14" FromIndex="1" ToIndex="0" />
+    </Connections>
+    <Tasks />
+  </Network>
+  <World LoadOnStart="False" SaveOnStop="False" Id="6" Name="World" yaxlib:realtype="GoodAI.Modules.GridWorld.MyGridWorld">
+    <USED_MAP>mapK</USED_MAP>
+    <TEXTURE>textureA</TEXTURE>
+    <RES>16</RES>
+    <VISIBLE_HEIGHT>80</VISIBLE_HEIGHT>
+    <VISIBLE_WIDTH>80</VISIBLE_WIDTH>
+    <ShowInEgocentricView>True</ShowInEgocentricView>
+    <EgocentricViewLimit>2</EgocentricViewLimit>
+    <WorldBoundsValue>0</WorldBoundsValue>
+    <DataFolder></DataFolder>
+    <Location />
+    <Tasks>
+      <Task Enabled="True" PropertyName="InitGameTask" yaxlib:realtype="GoodAI.Modules.GridWorld.MyGridWorld+MyInitTask" />
+      <Task Enabled="True" PropertyName="UpdateTask" yaxlib:realtype="GoodAI.Modules.GridWorld.MyGridWorld+MyUpdateTask">
+        <ForceDoorSwitches>False</ForceDoorSwitches>
+        <ForceDoorSwitchesState>False</ForceDoorSwitchesState>
+        <ForceLightSwitches>False</ForceLightSwitches>
+        <ForceLightSwitchesState>False</ForceLightSwitchesState>
+        <LimitFieldOfView>False</LimitFieldOfView>
+        <m_contMove>False</m_contMove>
+      </Task>
+      <Task Enabled="True" PropertyName="RenderGameTask" yaxlib:realtype="GoodAI.Modules.GridWorld.MyGridWorld+MyRenderTask" />
+      <Task Enabled="True" PropertyName="ResetAgentTask" yaxlib:realtype="GoodAI.Modules.GridWorld.MyGridWorld+MyResetAgentTask">
+        <PositionX>0</PositionX>
+        <PositionY>0</PositionY>
+      </Task>
+    </Tasks>
+  </World>
+  <Dashboard>
+    <Properties yaxlib:realtype="System.Collections.Generic.List`1[[GoodAI.Core.Dashboard.DashboardNodeProperty, GoodAI.Platform.Core, Version=0.4.0.0, Culture=neutral, PublicKeyToken=null]]" />
+  </Dashboard>
+  <GroupedDashboard>
+    <Properties yaxlib:realtype="System.Collections.Generic.List`1[[GoodAI.Core.Dashboard.DashboardPropertyGroup, GoodAI.Platform.Core, Version=0.4.0.0, Culture=neutral, PublicKeyToken=null]]" />
+  </GroupedDashboard>
+  <Observers>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="747" Y="118" />
+        <Size Width="148" Height="213" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>12#ActionOutput</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>1</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>6</m_yLength>
+    </MyMatrixObserver>
+    <MemoryBlockObserver yaxlib:realtype="GoodAI.Core.Observers.MyMemoryBlockObserver">
+      <Method>RedGreenScale</Method>
+      <Scale>Linear</Scale>
+      <Elements>2</Elements>
+      <TimeStep>0</TimeStep>
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="214" Y="365" />
+        <Size Width="300" Height="300" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>6#Visual</TargetIdentifier>
+      <m_boundPolicy>MANUAL</m_boundPolicy>
+      <m_minValue>0</m_minValue>
+      <m_maxValue>1</m_maxValue>
+    </MemoryBlockObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="214" Y="93" />
+        <Size Width="185" Height="250" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>6#GlobalOutput</TargetIdentifier>
+      <m_nbDecimals>2</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>1</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>14</m_yLength>
+    </MyMatrixObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="590" Y="111" />
+        <Size Width="139" Height="66" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>12#WorldResponse</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>1</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>1</m_yLength>
+    </MyMatrixObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="431" Y="105" />
+        <Size Width="151" Height="69" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>14#QueryInputSymbol</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>1</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>1</m_yLength>
+    </MyMatrixObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="521" Y="359" />
+        <Size Width="512" Height="230" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>14#FSMtransition</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>6</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>2</m_yLength>
+    </MyMatrixObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="1018" Y="280" />
+        <Size Width="179" Height="370" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>14#FSMoutput</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>2</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>2</m_yLength>
+    </MyMatrixObserver>
+  </Observers>
+  <MemoryBlockAttributes />
+  <UsedModules>
+    <Module Name="GoodAI.NewModuleWithSourceDeps.dll" Version="1" />
+    <Module Name="GoodAI.FSM.dll" Version="1" />
+    <Module Name="GoodAI.Platform.Core.dll" Version="10" />
+    <Module Name="GoodAI.BasicNodes.dll" Version="14" />
+  </UsedModules>
+</Project>
