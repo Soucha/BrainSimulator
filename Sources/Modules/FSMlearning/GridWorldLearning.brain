@@ -14,16 +14,15 @@
         </Tasks>
       </GridWorldMapperNode>
       <FSMlearnerNode LoadOnStart="False" SaveOnStop="False" Id="14" Name="Node_14" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerNode">
-        <Parameters>
-          <ParameterProperty>True</ParameterProperty>
-        </Parameters>
+        <Learner>OTree</Learner>
         <AlphabetSize>5</AlphabetSize>
         <MaxExtraDepth>1</MaxExtraDepth>
         <DataFolder></DataFolder>
-        <Location X="612" Y="308" />
+        <Location X="612" Y="307" />
         <Tasks>
           <Task Enabled="False" PropertyName="LearningTask" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTask" />
-          <Task Enabled="True" PropertyName="LearningTaskOld" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTaskDummy" />
+          <Task Enabled="False" PropertyName="LearningTaskOld" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerTaskDummy" />
+          <Task Enabled="True" PropertyName="FSMlibTask" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlibAlgorithms" />
         </Tasks>
       </FSMlearnerNode>
     </Children>
@@ -205,7 +204,7 @@
       <m_xStart>0</m_xStart>
       <m_xLength>6</m_xLength>
       <m_yStart>0</m_yStart>
-      <m_yLength>2</m_yLength>
+      <m_yLength>1</m_yLength>
     </MyMatrixObserver>
     <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
       <ViewMode>Fit_2D</ViewMode>
@@ -222,7 +221,7 @@
       <m_xStart>0</m_xStart>
       <m_xLength>2</m_xLength>
       <m_yStart>0</m_yStart>
-      <m_yLength>2</m_yLength>
+      <m_yLength>1</m_yLength>
     </MyMatrixObserver>
   </Observers>
   <MemoryBlockAttributes />

@@ -10,6 +10,7 @@ using GoodAI.Core.Nodes;
 using GoodAI.Core.Task;
 using GoodAI.Core.Utils;
 using YAXLib;
+using System.Runtime.InteropServices;
 
 namespace MyCompany.Modules.FSMlearnerModule
 {
@@ -36,9 +37,36 @@ namespace MyCompany.Modules.FSMlearnerModule
         public MyMemoryBlock<int> FSMtransition { get; private set; }
         public MyMemoryBlock<int> FSMoutput { get; private set; }
 
-        [MyBrowsable, Category("Parameters")]
-        [YAXSerializableField(DefaultValue = true), YAXElementFor("Parameters")]
-        public bool ParameterProperty { get; set; }
+        
+        public enum LearningAlgorithm
+        {
+            Lstar_AllPrefixes,
+            Lstar_AllSuffixesAfterLastState,
+            Lstar_Suffix1by1,
+            Lstar_SuffixAfterLastState,
+            Lstar_Suffix_binarySearch,
+            OP_AllGlobally,
+            OP_OneGlobally,
+            OP_OneLocally,
+            DT,
+            TTT,
+            Quotient,
+            GoodSplit,
+            OTree
+       }
+
+        [YAXSerializableField(DefaultValue = 12)]
+        [MyBrowsable, Category("Parameters"), DisplayName("Learning algorithm")]
+        public LearningAlgorithm Learner
+        {
+            get { return learner; }
+            set
+            {
+                learner = value;
+            }
+        }
+
+        private LearningAlgorithm learner;
 
         [MyBrowsable, Category("Parameters")]
         [YAXSerializableField(DefaultValue = 2)]
@@ -47,6 +75,10 @@ namespace MyCompany.Modules.FSMlearnerModule
         [MyBrowsable, Category("Parameters")]
         [YAXSerializableField(DefaultValue = 2)]
         public int MaxExtraDepth { get; set; }
+
+        [MyBrowsable, Category("Parameters")]
+        [YAXSerializableField(DefaultValue = false)]
+        public bool WriteDOT { get; set; }
 
         public int numStates = 0;
 
@@ -61,10 +93,73 @@ namespace MyCompany.Modules.FSMlearnerModule
 
         }
 
+        public override void OnSimulationStateChanged(GoodAI.Core.Execution.MySimulationHandler.StateEventArgs args)
+        {
+            base.OnSimulationStateChanged(args);
+            if ((args.NewState == GoodAI.Core.Execution.MySimulationHandler.SimulationState.STOPPED) && (FSMlibTask.Enabled)) {
+                // kill it!
+                FSMlibAlgorithms.stopLearning(FSMlibTask.id);
+            }
+        }
+
+        [MyTaskGroup("Mode")]
+        public FSMlibAlgorithms FSMlibTask { get; private set; }
         [MyTaskGroup("Mode")]
         public FSMlearnerTask LearningTask { get; private set; }
         [MyTaskGroup("Mode")]
         public FSMlearnerTaskDummy LearningTaskOld { get; private set; }
+    }
+
+    
+    /// <summary>
+    /// Learning task.
+    /// </summary>
+    public class FSMlibAlgorithms : MyTask<FSMlearnerNode>
+    {
+        [DllImport("BBport.dll")]
+        public static extern int initLearning(bool isResettable, ulong numberOfInputs, ulong maxExtraStates, int algId, bool writeDOT);
+
+        [DllImport("BBport.dll")]
+        public static extern ulong updateAndGetNextInput(int id, uint output);
+
+        [DllImport("BBport.dll")]
+        public static extern void stopLearning(int id);
+
+        private int queryInput;
+
+        public int id;
+        
+        public override void Init(int nGPU)
+        {
+            queryInput = -1;
+            id = initLearning(true, (ulong)Owner.AlphabetSize, (ulong)Owner.MaxExtraDepth, (int)Owner.Learner, Owner.WriteDOT);
+            MyLog.INFO.WriteLine("Learning initialized:\n id: " + id + "\n AlphabetSize: " + Owner.AlphabetSize + 
+                "\n MaxExtraStates: " + Owner.MaxExtraDepth +"\n Algorithm: "+ (int)Owner.Learner);
+        }
+
+        public override void Execute()
+        {
+            if (queryInput != -2) {
+                Owner.SystemResponse.SafeCopyToHost();
+                if (Owner.SystemResponse.Host[0] != -1) {
+                    //MyLog.INFO.WriteLine("out: " + Owner.SystemResponse.Host[0]);
+                    queryInput = (int)updateAndGetNextInput(id, (uint)Owner.SystemResponse.Host[0]);
+                    //MyLog.INFO.WriteLine("in: " + queryInput);
+                    if (queryInput == -2)
+                    {
+                        MyLog.INFO.WriteLine("Learning finished after "+ SimulationStep + " steps");
+                    }
+                    else
+                    {
+                        Owner.QueryInputSymbol.SafeCopyToHost();
+                        Owner.QueryInputSymbol.Host[0] = queryInput;
+                        Owner.QueryInputSymbol.SafeCopyToDevice();
+                    }
+                }
+                //setResponse(id, output_t(input + 1));
+                //input = getNextInput(id);   
+            }
+        }
     }
 
     /// <summary>
@@ -150,7 +245,9 @@ namespace MyCompany.Modules.FSMlearnerModule
         {
             if (tests.Count == 0)
             {
-                MyLog.INFO.WriteLine("Learning finished.");
+                if (!waitingForResponse)
+                    MyLog.INFO.WriteLine("Learning finished after " + SimulationStep + " steps");
+                waitingForResponse = true;
             }
             else
             {

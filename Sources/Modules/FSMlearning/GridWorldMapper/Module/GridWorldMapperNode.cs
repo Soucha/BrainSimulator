@@ -24,7 +24,7 @@ namespace MyCompany.Modules.GridWorldMapperModule
     /// The learner apply an action:
     /// <ul>
     ///     <li>-1: Reset to the agent's initial position,</li>
-    ///     <li>0: Do nothiong,</li>
+    ///     <li>0: Do nothing,</li>
     ///     <li>1,2,3,4: Move in 4 directions (left,right,up,down),</li>
     ///     <li>5: Control controllable objects.</li>
     /// </ul>
