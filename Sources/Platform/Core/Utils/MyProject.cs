@@ -6,18 +6,61 @@ using GoodAI.Core.Execution;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.IO;
+using GoodAI.Core.Dashboard;
 using YAXLib;
 
 namespace GoodAI.Core.Utils
 {
     [YAXSerializeAs("Project"), YAXSerializableType(FieldsToSerialize=YAXSerializationFields.AttributedFieldsOnly)]
     public class MyProject : IDisposable
-    {        
-        [YAXSerializableField, YAXAttributeForClass]
-        public string Name { get; set; }
+    {
+        public MyProject()
+        {
+            // Set temporary random filename (without even creating the file)
+            m_fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".brain");
 
-        [YAXSerializableField, YAXSerializeAs("Observers")]
-        public List<MyAbstractObserver> Observers;
+            // Set corresponding Name, but keep the HasBeenNamed property to false
+            Name = MakeNameFromPath(m_fileName);
+        }
+
+        #region Name and FileName
+
+        [YAXSerializableField, YAXAttributeForClass]
+        public string Name { get; private set; }
+
+        public static string MakeNameFromPath(string path)
+        {
+            return Path.GetFileNameWithoutExtension(path);
+        }
+
+        public static string MakeDataFolderFromFileName(string path)
+        {
+            return Path.Combine(Path.GetDirectoryName(path), MyProject.MakeNameFromPath(path) + ".statedata");
+        }
+
+        public bool HasBeenNamed { get; private set; }
+
+        public string FileName
+        {
+            get { return m_fileName; }
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new ArgumentException("Invalid file name");
+
+                m_fileName = value;
+                Name = MakeNameFromPath(value);
+                HasBeenNamed = true;
+            }
+        }
+        private string m_fileName;
+
+        #endregion
+
+        [YAXSerializableField]
+        [YAXSerializeAs("Observers")]
+        public List<MyAbstractObserver> Observers { get; set; }
 
         public MySimulationHandler SimulationHandler { get; set; }
 
@@ -53,14 +96,14 @@ namespace GoodAI.Core.Utils
             }
         }
 
-        public N CreateNode<N>() where N : MyNode, new()
+        public TNode CreateNode<TNode>() where TNode : MyNode, new()
         {
-            return (N)CreateNode(typeof(N));
+            return (TNode)CreateNode(typeof(TNode));
         }        
 
         public MyNode CreateNode(Type nodeType)
         {
-            MyNode newNode = Activator.CreateInstance(nodeType) as MyNode;
+            var newNode = Activator.CreateInstance(nodeType) as MyNode;
             newNode.Owner = this;
             newNode.Init();
 
@@ -68,6 +111,14 @@ namespace GoodAI.Core.Utils
         }
 
         #endregion
+
+        public MyConnection Connect(MyNode fromNode, MyNode toNode, int fromIndex=0, int toIndex=0)
+        {
+            var connection = new MyConnection(fromNode, toNode, fromIndex, toIndex);
+            connection.Connect();
+
+            return connection;
+        }
 
         #region Network & World properties code
 
@@ -189,30 +240,6 @@ namespace GoodAI.Core.Utils
 
         #endregion
 
-        #region Memory Block Attributes
-
-        [YAXSerializableField, YAXDictionary(EachPairName = "Item")]
-        protected Dictionary<string, MemBlockAttribute> MemoryBlockAttributes;
- 
-        private void CollectMemBlockAttributes()
-        {
-            MemoryBlockAttributes = MyMemoryManager.Instance.CollectMemBlockAttributes();
-        }
-
-        private void ApplyMemBlockAttributes()
-        {
-            if (MemoryBlockAttributes == null)  // attributes are not mandatory
-                return;
-
-            // make sure to be marked as having non-default value
-            foreach (var attribute in MemoryBlockAttributes.Values)
-                attribute.FinalizeDeserialization();
-
-            MyMemoryManager.Instance.ApplyMemBlockAttributes(MemoryBlockAttributes);
-        }
-
-        #endregion
-       
         #region Dashboard
 
         [YAXSerializableField]
@@ -220,6 +247,16 @@ namespace GoodAI.Core.Utils
 
         [YAXSerializableField]
         public Dashboard.GroupDashboard GroupedDashboard { get; set; }
+
+        #endregion
+
+        #region Project Options
+
+        [YAXSerializableField]
+        public bool LoadAllNodesData { get; set; }
+
+        [YAXSerializableField]
+        public bool SaveAllNodesData { get; set; }
 
         #endregion
 
@@ -241,7 +278,7 @@ namespace GoodAI.Core.Utils
                 YAXExceptionHandlingPolicies.DoNotThrow, YAXExceptionTypes.Error, YAXSerializationOptions.SerializeNullObjects);
         }
 
-        public string Serialize(string projectPath)
+        public string Serialize()
         {                        
             if (ReadOnly)            
             {
@@ -250,10 +287,9 @@ namespace GoodAI.Core.Utils
             
             Network.PrepareConnections();
             UsedModules = ScanForUsedModules();
-            CollectMemBlockAttributes();
 
             StringBuilder sb = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\"?>" + System.Environment.NewLine);
-            MyPathSerializer.ReferencePath = projectPath;  // needed for conversion of absolute paths to relative ones
+            MyPathSerializer.ReferencePath = Path.GetDirectoryName(FileName);  // Needed for conversion of absolute paths to relative ones.
             sb.Append(MyProject.GetSerializer().Serialize(this));
             MyPathSerializer.ReferencePath = String.Empty;
 
@@ -266,9 +302,9 @@ namespace GoodAI.Core.Utils
          
             MyNodeGroup.IteratorAction scanForModules = delegate(MyNode node)
             {
-                if (MyConfiguration.AssemblyLookup.ContainsKey(node.GetType().Assembly))
+                if (MyConfiguration.AssemblyLookup.ContainsKey(node.GetType().Assembly.FullName))
                 {
-                    usedModules.Add(MyConfiguration.AssemblyLookup[node.GetType().Assembly]);
+                    usedModules.Add(MyConfiguration.AssemblyLookup[node.GetType().Assembly.FullName]);
                 }
                 else
                 {
@@ -327,7 +363,14 @@ namespace GoodAI.Core.Utils
             return convertedXml;
         }        
 
-        public static MyProject Deserialize(string xml, string projectPath)
+        /// <summary>
+        /// Deserializes the project from a given string.
+        /// </summary>
+        /// <param name="xml">The input string for deserialization.</param>
+        /// <param name="projectPath">Project path for correct lookup of items like state data.</param>
+        /// <param name="restoreModelOnly">If set to true, only the model is deserialized, but not observers etc.</param>
+        /// <returns>A deserialized project.</returns>
+        public static MyProject Deserialize(string xml, string projectPath, bool restoreModelOnly = false)
         {            
             xml = MyBaseConversion.ConvertOldFileVersioning(xml);
             xml = MyBaseConversion.ConvertOldModuleNames(xml);
@@ -346,9 +389,11 @@ namespace GoodAI.Core.Utils
                 throw new YAXException("Cannot deserialize project.");
             }
 
-            loadedProject.ApplyMemBlockAttributes();
+            loadedProject.FileName = projectPath;
 
             loadedProject.World.FinalizeTasksDeserialization();
+
+            loadedProject.World.UpdateAfterDeserialization();
             loadedProject.m_nodeCounter = loadedProject.Network.UpdateAfterDeserialization(0, loadedProject);
 
             if (loadedProject.World.Id > loadedProject.m_nodeCounter)
@@ -359,6 +404,9 @@ namespace GoodAI.Core.Utils
             loadedProject.m_nodeCounter++;
 
             loadedProject.ConnectWorld();            
+
+            if (!restoreModelOnly)
+                loadedProject.Restore();
 
             return loadedProject;
         }
@@ -511,5 +559,34 @@ namespace GoodAI.Core.Utils
         }
 
         #endregion
+
+        public void Restore()
+        {
+            RestoreObservers();
+            RestoreDashboard();
+        }
+
+        private void RestoreDashboard()
+        {
+            if (Dashboard == null)
+                Dashboard = new Dashboard.Dashboard();
+
+            if (GroupedDashboard == null)
+                GroupedDashboard = new GroupDashboard();
+
+            // The order is important - the normal dashboard properties must be set up
+            // before they're added to groups.
+            Dashboard.RestoreFromIds(this);
+            GroupedDashboard.RestoreFromIds(this);
+        }
+
+        public void RestoreObservers()
+        {
+            if (Observers == null)
+                return;
+
+            foreach (MyAbstractObserver observer in Observers)
+                observer.RestoreTargetFromIdentifier(this);
+        }
     }
 }

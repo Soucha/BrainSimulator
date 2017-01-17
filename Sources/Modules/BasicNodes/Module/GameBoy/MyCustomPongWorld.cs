@@ -1,6 +1,7 @@
 ﻿using GoodAI.Core;
 using GoodAI.Core.Memory;
 using GoodAI.Core.Nodes;
+using GoodAI.Core.Signals;
 using GoodAI.Core.Task;
 using GoodAI.Core.Utils;
 using ManagedCuda;
@@ -32,6 +33,10 @@ namespace GoodAI.Modules.GameBoy
     /// </description>
     public class MyCustomPongWorld : MyWorld
     {
+        public class GamePauseRequestSignal : MySignal { }
+        public GamePauseRequestSignal GamePauseRequest { get; protected set; }
+        private int m_gameStepsMade;
+
         public class MyGameObject
         {
             public float2 position;
@@ -39,6 +44,8 @@ namespace GoodAI.Modules.GameBoy
             public float2 velocity;
             public CUdeviceptr bitmap;
         };
+
+        #region Memory blocks
 
         [MyInputBlock]
         public virtual MyMemoryBlock<float> Controls
@@ -95,22 +102,32 @@ namespace GoodAI.Modules.GameBoy
             set { SetOutput(6, value); }
         }
 
-        [MyBrowsable, Category("Params")]
-        [YAXSerializableField(DefaultValue = 160)]
-        public int DISPLAY_WIDTH { get; set; }
-
-        [MyBrowsable, Category("Params")]
-        [YAXSerializableField(DefaultValue = 140)]
-        public int DISPLAY_HEIGHT { get; set; }
-
         public MyMemoryBlock<float> Bitmaps { get; protected set; }
+        public MyMemoryBlock<int> Bricks { get; protected set; }
 
-        protected Dictionary<string, Bitmap> m_bitmapTable = new Dictionary<string, Bitmap>();
-        private string m_errorMessage;
+        #endregion
+
+        #region BS properties
+
+        [MyBrowsable, Category("Visual")]
+        [YAXSerializableField(DefaultValue = 256), DisplayName("\tDisplayWidth")]
+        public int DisplayWidth { get; protected set; }
+
+        [MyBrowsable, Category("Visual")]
+        [YAXSerializableField(DefaultValue = 224)]
+        public int DisplayHeight { get; protected set; }
+
+
+        [MyBrowsable, Category("Params")]
+        [YAXSerializableField(DefaultValue = false)]
+        public virtual bool BricksEnabled { get; set; }
+
+        #endregion
+
+        #region Fields
 
         protected List<MyGameObject> m_gameObjects;
 
-        public MyMemoryBlock<int> Bricks { get; protected set; }
         private MyGameObject m_brickPrototype;
         private MyGameObject m_lifePrototype;
 
@@ -121,14 +138,25 @@ namespace GoodAI.Modules.GameBoy
         private int m_lifes = 0;
         private int m_bricksRemains = 0;
 
-        [MyBrowsable, Category("Params")]
-        [YAXSerializableField(DefaultValue = false)]
-        public virtual bool BricksEnabled { get; set; }
+        public Size Scene { get; protected set; }
+
+        protected readonly Dictionary<string, Bitmap> m_bitmapTable = new Dictionary<string, Bitmap>();
+        private string m_errorMessage;
+
+        #endregion
+
+        public MyCustomPongWorld()
+        {
+            DisplayWidth = 256;
+            DisplayHeight = 224;
+            Scene = new Size(160, 140);
+        }
+
+        #region MyNode overrides
 
         public override void UpdateMemoryBlocks()
         {
-            Visual.Count = DISPLAY_WIDTH * DISPLAY_HEIGHT;
-            Visual.ColumnHint = DISPLAY_WIDTH;
+            Visual.Dims = new TensorDimensions(Scene.Width, Scene.Height);
 
             Bitmaps.Count = 0;
 
@@ -145,17 +173,6 @@ namespace GoodAI.Modules.GameBoy
             BinaryEvent.Count = 3;
 
             Bricks.Count = BRICKS_COUNT_X * BRICKS_COUNT_Y;
-        }
-
-        public override void Validate(MyValidator validator)
-        {
-            base.Validate(validator);
-            if (Controls != null)
-            {
-                validator.AssertError(Controls.Count >= 3, this, "Not enough controls (3 expected)");
-            }
-
-            validator.AssertError(Bitmaps.Count != 0, this, "Node cannot be executed. Some resources are missing: " + m_errorMessage);
         }
 
         private int LoadAndGetBitmapSize(string path)
@@ -176,6 +193,21 @@ namespace GoodAI.Modules.GameBoy
             }
             else return m_bitmapTable[path].Width * m_bitmapTable[path].Height;
         }
+
+        public override void Validate(MyValidator validator)
+        {
+            base.Validate(validator);
+            if (Controls != null)
+            {
+                validator.AssertError(Controls.Count >= 3, this, "Not enough controls (3 expected)");
+            }
+
+            validator.AssertError(Bitmaps.Count != 0, this, "Node cannot be executed. Some resources are missing: " + m_errorMessage);
+        }
+
+        #endregion
+
+        #region Tasks
 
         public virtual MyInitTask InitGameTask { get; protected set; }
         public virtual MyUpdateTask UpdateTask { get; protected set; }
@@ -275,21 +307,25 @@ namespace GoodAI.Modules.GameBoy
         }
 
         /// <summary>
-        /// Renders the game to visual output.
+        /// Renders the game to visual output. If the GamePauseRequest signal is rised, the game is paused.
         /// </summary>
         public class MyRenderTask : MyTask<MyCustomPongWorld>
         {
-            private MyCudaKernel m_kernel;
             private MyCudaKernel m_bricksKernel;
+            private MyCudaKernel m_spriteKernel;
 
             public override void Init(int nGPU)
             {
-                m_kernel = MyKernelFactory.Instance.Kernel(nGPU, @"Transforms\Transform2DKernels", "DrawSpriteKernel");
                 m_bricksKernel = MyKernelFactory.Instance.Kernel(nGPU, @"Drawing\CustomPong", "DrawBricksKernel");
+                m_spriteKernel = MyKernelFactory.Instance.Kernel(nGPU, @"Transforms\Transform2DKernels", "DrawSpriteKernel");
             }
 
             public override void Execute()
             {
+                if (Owner.GamePauseRequest.IsRised() || Owner.GamePauseRequest.IsIncomingRised())
+                {
+                    return;
+                }
                 Owner.Visual.Fill(1.0f);
 
                 if (Owner.BricksEnabled)
@@ -297,7 +333,7 @@ namespace GoodAI.Modules.GameBoy
                     MyGameObject brick = Owner.m_brickPrototype;
 
                     m_bricksKernel.SetupExecution(brick.pixelSize.x * brick.pixelSize.y);
-                    m_bricksKernel.Run(Owner.Visual, Owner.DISPLAY_WIDTH, Owner.DISPLAY_HEIGHT,
+                    m_bricksKernel.Run(Owner.Visual, Owner.Scene.Width, Owner.Scene.Height,
                         Owner.Bricks, BRICKS_COUNT_X, BRICKS_COUNT_Y,
                         brick.bitmap, brick.position, brick.pixelSize);
                 }
@@ -306,12 +342,12 @@ namespace GoodAI.Modules.GameBoy
                 {
                     MyGameObject g = Owner.m_gameObjects[i];
 
-                    m_kernel.SetupExecution(g.pixelSize.x * g.pixelSize.y);
-                    m_kernel.Run(Owner.Visual, Owner.DISPLAY_WIDTH, Owner.DISPLAY_HEIGHT, g.bitmap, g.position, g.pixelSize);
+                    m_spriteKernel.SetupExecution(g.pixelSize.x * g.pixelSize.y);
+                    m_spriteKernel.Run(Owner.Visual, Owner.Scene.Width, Owner.Scene.Height, g.bitmap, g.position, g.pixelSize);
                 }
 
                 MyGameObject life = Owner.m_lifePrototype;
-                m_kernel.SetupExecution(life.pixelSize.x * life.pixelSize.y);
+                m_spriteKernel.SetupExecution(life.pixelSize.x * life.pixelSize.y);
 
                 /*
                 for (int i = 0; i < Owner.m_lifes; i++)
@@ -324,7 +360,7 @@ namespace GoodAI.Modules.GameBoy
         }
 
         /// <summary>
-        /// BinaryEvent output has a vector of binary events as follows: "bounce ball", "brick destroyed", "lost life".
+        /// BinaryEvent output has a vector of binary events as follows: "bounce ball", "brick destroyed", "lost life". If the GamePauseRequest signal is rised, the game is paused.
         /// </summary>
         public class MyUpdateTask : MyTask<MyCustomPongWorld>
         {
@@ -336,6 +372,37 @@ namespace GoodAI.Modules.GameBoy
             [YAXSerializableField(DefaultValue = 0)]
             public int FreezeAfterFail { get; set; }
 
+            [MyBrowsable, Category("Params"), Description("Set paddle to the random postion every n steps.")]
+            [YAXSerializableField(DefaultValue = 0)]
+            public int RndPaddleShuffle { get; set; }
+
+            private float m_friction;
+            [MyBrowsable, Category("Dynamics"), 
+            Description("Set paddle friction.\npaddle.velocity += (control * PADDLE_ACCELERATION - paddle.velocity * PaddleFriction) * DELTA_T ")]
+            [YAXSerializableField(DefaultValue = PADDLE_FRICTION)]
+            public float PaddleFriction
+            {
+                get { return m_friction; }
+                set
+                {
+                    if (value <= 1 && value >= 0)
+                    {
+                        m_friction = value;
+                    }
+                }
+            }
+
+            [MyBrowsable, Category("Dynamics"), 
+            Description("If false, dynamics of the paddle will be ignored (velocity/friction). "+
+                "Now only the current control signal is taken into account (with some coolDown)")]
+            [YAXSerializableField(DefaultValue = true)]
+            public bool EnablePaddleDynamics { get; set; }
+
+            [MyBrowsable, Category("Dynamics"),
+            Description("By default, the nonzero control signal is preserved for several steps when STAY control signal is sent.")]
+            [YAXSerializableField(DefaultValue = true)]
+            public bool EnableControlCoolDown { get; set; }
+            
             private int stepsFrozen = 0;
 
             [MyBrowsable, Category("Events")]
@@ -353,7 +420,7 @@ namespace GoodAI.Modules.GameBoy
             protected static readonly int BOUNCE_BALL_I = 0;
             protected static readonly int BRICK_DESTROYED_I = 1;
             protected static readonly int LOST_LIFE_I = 2;
-            
+
             protected const float MAX_PADDLE_VELOCITY = 4.0f;
 
             protected const float INIT_BALL_VELOCITY = 1.3f;
@@ -372,6 +439,7 @@ namespace GoodAI.Modules.GameBoy
             {
                 m_control = 0;
                 m_controlCoolDown = 0;
+                Owner.m_gameStepsMade = 0;
             }
 
             protected virtual void ExecutePrepareHost()
@@ -382,6 +450,16 @@ namespace GoodAI.Modules.GameBoy
                 Owner.BinaryEvent.Host[BRICK_DESTROYED_I] = 0;
 
                 Owner.Controls.SafeCopyToHost();
+            }
+
+            private void EcecuteRandomPaddleShuffle()
+            {
+                if (RndPaddleShuffle > 0 && Owner.m_gameStepsMade % RndPaddleShuffle == 0)
+                {
+                    MyGameObject paddle = Owner.m_gameObjects[1];
+                    float rnd = (float)m_random.NextDouble();
+                    paddle.position.x = rnd * (Owner.Scene.Width - paddle.pixelSize.x);
+                }
             }
 
             protected virtual void ExecuteResolveEvents()
@@ -424,9 +502,17 @@ namespace GoodAI.Modules.GameBoy
 
             public override void Execute()
             {
+                if (Owner.GamePauseRequest.IsRised() || Owner.GamePauseRequest.IsIncomingRised())
+                {
+                    return;
+                }
+                Owner.m_gameStepsMade++;
+
                 ExecutePrepareHost();
 
                 ExecuteResolveEvents();
+
+                EcecuteRandomPaddleShuffle();
 
                 ExecuteCopyToDevice();
             }
@@ -451,8 +537,8 @@ namespace GoodAI.Modules.GameBoy
                 MyGameObject ball = Owner.m_gameObjects[0];
                 MyGameObject paddle = Owner.m_gameObjects[1];
 
-                ball.position.x = (Owner.DISPLAY_WIDTH - ball.pixelSize.x) * 0.5f;
-                ball.position.y = Owner.DISPLAY_HEIGHT - 22;
+                ball.position.x = (Owner.Scene.Width - ball.pixelSize.x) * 0.5f;
+                ball.position.y = Owner.Scene.Height - 22;
 
                 if (RandomBallDir)
                 {
@@ -468,8 +554,8 @@ namespace GoodAI.Modules.GameBoy
                 ball.velocity /= (float)Math.Sqrt(ball.velocity.x * ball.velocity.x + ball.velocity.y * ball.velocity.y);
                 ball.velocity *= INIT_BALL_VELOCITY;
 
-                paddle.position.x = (Owner.DISPLAY_WIDTH - paddle.pixelSize.x) * 0.5f;
-                paddle.position.y = Owner.DISPLAY_HEIGHT - 14;
+                paddle.position.x = (Owner.Scene.Width - paddle.pixelSize.x) * 0.5f;
+                paddle.position.y = Owner.Scene.Height - 14;
 
                 paddle.velocity.x = 0;
                 paddle.velocity.y = 0;
@@ -501,13 +587,13 @@ namespace GoodAI.Modules.GameBoy
                     ball.velocity.x = -ball.velocity.x;
                 }
                 //rightSide
-                if (futurePos.x + ball.pixelSize.x > Owner.DISPLAY_WIDTH && ball.velocity.x > 0)
+                if (futurePos.x + ball.pixelSize.x > Owner.Scene.Width && ball.velocity.x > 0)
                 {
                     ball.velocity.x = -ball.velocity.x;
                 }
 
                 //bottom side
-                if (futurePos.y + ball.pixelSize.y > Owner.DISPLAY_HEIGHT && ball.velocity.y > 0)
+                if (futurePos.y + ball.pixelSize.y > Owner.Scene.Height && ball.velocity.y > 0)
                 {
                     if (stepsFrozen == 0)
                     {
@@ -546,20 +632,27 @@ namespace GoodAI.Modules.GameBoy
 
             protected void ResolvePaddleEvents(MyGameObject paddle, float control)
             {
-                paddle.velocity += (control * PADDLE_ACCELERATION - paddle.velocity * PADDLE_FRICTION) * DELTA_T;
+                if (EnablePaddleDynamics)
+                {
+                    paddle.velocity += (control * PADDLE_ACCELERATION - paddle.velocity * PaddleFriction) * DELTA_T;
 
-                if (paddle.velocity.x > MAX_PADDLE_VELOCITY)
-                {
-                    paddle.velocity.x = MAX_PADDLE_VELOCITY;
+                    if (paddle.velocity.x > MAX_PADDLE_VELOCITY)
+                    {
+                        paddle.velocity.x = MAX_PADDLE_VELOCITY;
+                    }
+                    else if (paddle.velocity.x < -MAX_PADDLE_VELOCITY)
+                    {
+                        paddle.velocity.x = -MAX_PADDLE_VELOCITY;
+                    }
                 }
-                else if (paddle.velocity.x < -MAX_PADDLE_VELOCITY)
+                else
                 {
-                    paddle.velocity.x = -MAX_PADDLE_VELOCITY;
+                    paddle.velocity.x = control * DELTA_T;
                 }
 
                 float2 futurePos = paddle.position + paddle.velocity;
 
-                if (futurePos.x < 0 || futurePos.x + paddle.pixelSize.x > Owner.DISPLAY_WIDTH)
+                if (futurePos.x < 0 || futurePos.x + paddle.pixelSize.x > Owner.Scene.Width)
                 {
                     paddle.velocity.x = 0;
                 }
@@ -648,7 +741,7 @@ namespace GoodAI.Modules.GameBoy
                 }
                 else
                 {
-                    if (controlCoolDown < 0)
+                    if (controlCoolDown < 0 || !EnableControlCoolDown)
                     {
                         control = 0;
                     }
@@ -706,5 +799,7 @@ namespace GoodAI.Modules.GameBoy
             private static readonly int[][] LEVELS = { LEVEL_0, LEVEL_1, LEVEL_2 };
             private static readonly int[] LEVELS_BRICKS = { 40, 40, 36 };
         }
+
+        #endregion
     }
 }

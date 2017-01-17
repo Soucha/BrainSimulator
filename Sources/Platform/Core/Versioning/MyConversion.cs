@@ -10,7 +10,7 @@ namespace GoodAI.Core.Versioning
     {
         public override int CurrentVersion
         {
-            get { return 10; }
+            get { return 14; }
         }
 
         public static string Convert1To2(string xml)
@@ -179,6 +179,75 @@ namespace GoodAI.Core.Versioning
             result = result.Replace("HostTimePlotObserver", "TimePlotObserver");
 
             return result;
+        }
+
+        public static string Convert10To11(string xml)
+        {
+            string result = xml;
+
+            // Generics require the new superclass
+            result = result.Replace("[[GoodAI.Core.Dashboard.DashboardNodeProperty,",
+                "[[GoodAI.Core.Dashboard.DashboardNodePropertyBase,");
+
+            result = result.Replace("<DashboardNodeProperty>",
+                "<DashboardNodeProperty yaxlib:realtype=\"GoodAI.Core.Dashboard.DashboardNodeProperty\">");
+
+            return result;
+        }
+
+        public static string Convert11To12(string xml)
+        {
+            string result = xml;
+
+            // Generics require the new superclass
+            XDocument document = XDocument.Parse(result);
+
+            IEnumerable<XElement> elements = document.XPathSelectElements("//Connection");
+            foreach (XElement element in elements)
+            {
+                element.SetAttributeValue("IsLowPriority", "False");
+            }
+
+            return document.ToString();
+        }
+
+        /// <summary>
+        /// Remove TensorDimensions and the whole MemoryBlockAttributes section.
+        /// </summary>
+        /// <param name="xml"></param>
+        /// <returns></returns>
+        public static string Convert12To13(string xml)
+        {
+            XDocument document = XDocument.Parse(xml);
+
+            XElement element = document.XPathSelectElement("/Project/MemoryBlockAttributes");
+            if (element == null)
+                return xml;  // Avoid regenerating of an unchanged document.
+
+            element.Remove();
+
+            return document.ToString();
+        }
+
+        /// <summary>
+        /// Adds "IsHidden" attribute to all connections
+        /// </summary>
+        /// <param name="xml"></param>
+        /// <returns></returns>
+        public static string Convert13To14(string xml)
+        {
+            string result = xml;
+
+            // Generics require the new superclass
+            XDocument document = XDocument.Parse(result);
+
+            IEnumerable<XElement> elements = document.XPathSelectElements("//Connection");
+            foreach (XElement element in elements)
+            {
+                element.SetAttributeValue("IsHidden", "False");
+            }
+
+            return document.ToString();
         }
     }
 }

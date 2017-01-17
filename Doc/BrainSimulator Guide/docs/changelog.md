@@ -1,3 +1,63 @@
+### Brain Simulator 0.6.0
+*Early access release* (2016-12-01)
+
+#### School for AI
+
+* A school environment was added to BrainSimulator. It allows you to train and test your architectures easily. See the [documentation page](examples\school.md) for School for AI.
+* Two new worlds useful for School for AI were added - RoguelikeWorld (a simple, highly configurable 2D environment) and ToyWorld (a more complex, continuous 2D environment). See the [documentation](examples\worlds.md) for more details.
+
+#### New features
+
+**Python API** - Added Python interface for MyProjectRunner that allows you to control simulation of a brain project from code. You can also use some classes of the School for AI. 
+
+**Tiling observer for tensors** - The memory block observer can now show the data in tiles according to tensor dimensions. See the new option ObserveTensors. 
+
+#### Improvements and fixes
+* MNIST World now allows to specify random seed
+* Improved Resize2D node, added the possibility to compute exact 1 to N or N to 1 interpolations
+* Observers improvements, e.g. added possibility to produce custom peek label by a custom observer
+* A brain project is now loaded even if some target memory blocks are not found
+
+#### New nodes
+* Added Dynamic Boltzman Machine module (called DyBM).
+* Added SignalToFloatNode that converts communication Signals to data in a memory block
+
+
+### Brain Simulator 0.5.0
+*Early access release* (2016-04-12)
+
+*Brain Simulator is now licensed under **Apache License**, version 2.0!*
+
+#### New features
+
+**Undo** - it's now possible to undo and redo model changes such as connection or node removal   
+
+**Dynamic model (experimental)** - the ability to programmatically change the model at runtime, add and connect new nodes, etc. (see [dynamic model API description](model.md#dynamic-model))
+
+**Changed memory block dimensions API** - improved API for manipulating with memory block dimensions (the `TensorDimensions` class), removed user defined dimensions from UI (dimensions can be adjusted only on dedicated places such as Join node output or the memory block observer) 
+
+**Brain Unit testing framework (experimental)** - the ability to easily create node and brain tests using Brain Unit node or by defining a simple class (see the [node and brain testing guide](guides\brain_testing.md))
+
+**Memory block metadata** - the ability to attach any metadata to memory blocks (such as preferred visualization method)
+
+**Select backward edges** - select which connections in a cycle are backward to adjust simulation order
+
+**Scripting node group** - a node group that allows to define a custom task scheduler in a script
+
+#### Improvements and fixes
+
+* Options 'Load on start' and 'Save on close' are now saved in the project file
+* Fixed and issue which caused the memory block state data to be saved on a wrong place
+* Task and task group enabling/disabling can be added to the dashboard
+* MNIST World improvements - separate tasks for training and testing data, more improvements
+* Improved reduction API
+
+#### Known bugs
+
+* The CUDA-based Matrix Observer sometimes crashes, please try to replace it with the new CPU-based Matrix Observer (look for an icon with a green dot) 
+
+
+
 ### Brain Simulator 0.4.0
 *Early access release* (2015-12-16)
 
@@ -11,7 +71,7 @@
 
 **Dynamic memory** – blocks marked as dynamic can be reallocated in node/task code
 
-**Memory Blocks dimensions (experimental)** – memory block attribute that allows arbitrary dimension setting both from the UI and from code (please do not use it from code yet, as API will probably change)
+**Memory blocks dimensions (experimental)** – memory block attribute that allows arbitrary dimension setting both from the UI and from code (please do not use it from code yet, as API will probably change)
 
 ##### New worlds and nodes
 
@@ -42,6 +102,8 @@
 
 * Save As and Import does not support moving/loading the state data (e.g. when working with a "brainz" project file)
 * Most transformation nodes have incomplete validation that allows zero input; it will cause a crash in kernels during the simulation
+
+
 
 ### Brain Simulator 0.3.0
 *Early access release* (2015-10-29)

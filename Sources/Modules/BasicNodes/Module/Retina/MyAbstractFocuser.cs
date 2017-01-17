@@ -40,17 +40,18 @@ namespace GoodAI.Modules.Retina
 
         public override void UpdateMemoryBlocks()
         {
-            OutputSize = OutputWidth * OutputWidth;
-            Output.Dims = new TensorDimensions(OutputWidth, OutputWidth);
+            //Output.Dims = new TensorDimensions(OutputWidth, OutputWidth);
 
             NumberPupilSamples = 1;
             if (PupilControl != null && PupilControl.Count > 3) // for multi input -> set how $ pupils samples from the count
                 NumberPupilSamples = PupilControl.Count / PupilControl.ColumnHint;
-            OutputSize *= NumberPupilSamples;
+
+            //Output.Dims[1] = Output.Dims.ElementCount * NumberPupilSamples / Output.Dims[0];
+            Output.Dims = new TensorDimensions(OutputWidth, OutputWidth * NumberPupilSamples);
 
             TempPupilControl.Count = 3;
 
-            RetinaPtsDefsMask.Count = OutputSize* 2;
+            RetinaPtsDefsMask.Count = OutputSize * 2;
             RetinaPtsDefsMask.ColumnHint = 2;
             RetinaTempCumulateSize.Count = Output.Count;
         }

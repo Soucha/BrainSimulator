@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using CoreTests;
 using GoodAI.Core;
 using GoodAI.Core.Configuration;
 using GoodAI.Core.Execution;
@@ -15,15 +16,23 @@ using GoodAI.Modules.Testing;
 using Xunit;
 using Xunit.Sdk;
 using GoodAI.Modules.Common;
+using GoodAI.Platform.Core.Configuration;
+using GoodAI.TypeMapping;
 
 namespace BasicNodesTests
 {
-    public class MyCsvFileWriterNodeTests
+    public class MyCsvFileWriterNodeTests : CoreTestBase
     {
         private int m_openCount;
 
-        private AutoResetEvent m_continueEvent = new AutoResetEvent(false);
+        private readonly AutoResetEvent m_continueEvent = new AutoResetEvent(false);
         private string m_outputFileFullPath;
+        private MyValidator m_validator;
+
+        public MyCsvFileWriterNodeTests()
+        {
+            m_validator = TypeMap.GetInstance<MyValidator>();
+        }
 
         /// <summary>
         /// When the simulation is paused or stopped, the handle should be released so that the file can be modified.
@@ -40,7 +49,7 @@ namespace BasicNodesTests
 
             string projectPath = directory + fileName;
 
-            var simulation = new MyLocalSimulation();
+            var simulation = TypeMap.GetInstance<MySimulation>();
 
             // TODO(HonzaS): This should not be required!
             // The referenced assemblies get loaded only if a Type is required here. But since the serializer

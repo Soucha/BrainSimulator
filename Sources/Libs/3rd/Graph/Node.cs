@@ -61,6 +61,16 @@ namespace Graph
         public Point Position { get; private set; }
     }
 
+    public sealed class PositionChangedEventArgs : EventArgs
+    {
+        public object Target { get; private set; }
+
+        public PositionChangedEventArgs(object target)
+        {
+            Target = target;
+        }
+    }
+
     public class Node : IElement
     {
         public string Title { get { return titleItem.Title; } set { titleItem.Title = value; } }
@@ -222,5 +232,17 @@ namespace Graph
         }
 
         public ElementType ElementType { get { return ElementType.Node; } }
+
+        /// <summary>
+        /// This gets called if the graph control of this node is selected and if the node itself is selected
+        /// and a key is pressed.
+        /// </summary>
+        public virtual void OnKeyDown(KeyEventArgs e) { }
+
+        /// <summary>
+        /// This gets called if the graph control of this node is selected and if the node itself is selected
+        /// and a key is depressed.
+        /// </summary>
+        public virtual void OnKeyUp(KeyEventArgs e) { }
     }
 }

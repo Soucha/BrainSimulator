@@ -2,6 +2,12 @@
 <Configuration RootNamespace="GoodAI.Modules">  
   <KnownNodes>
 
+    <Node type="GoodAI.Modules.Vision.MaskCreationNode" CanBeAdded="true" BigIcon="mask_big.png" SmallIcon="mask.png">
+      <Label>Transformations</Label>
+      <Label>Vision</Label>
+    </Node>
+
+
     <Node type="GoodAI.Modules.Transforms.MyFilter2D" CanBeAdded="true" BigIcon="transform_big.png" SmallIcon="transform.png">
       <Label>Vision</Label>
     </Node>
@@ -9,6 +15,9 @@
       <Label>Vision</Label>
     </Node>
     <Node type="GoodAI.Modules.Transforms.MyResize2D" CanBeAdded="true" BigIcon="imagescale_big.png" SmallIcon="imagescale.png">
+      <Label>Transformations</Label>
+    </Node>
+    <Node type="GoodAI.Modules.Transforms.MyRawImageTransform" CanBeAdded="true">
       <Label>Transformations</Label>
     </Node>
     <Node type="GoodAI.Modules.Transforms.MyAccumulator" CanBeAdded="true" BigIcon="delayedcopy_big.png" SmallIcon="delayedcopy.png">
@@ -27,6 +36,10 @@
     <Node type="GoodAI.Core.Nodes.MySignalNode" CanBeAdded="true" BigIcon="signal_big.png" SmallIcon="signal.png">
       <Label>Control &amp; Dataflow</Label>
     </Node>
+    <Node type="GoodAI.Core.Nodes.MySignalToFloatNode" CanBeAdded="true" BigIcon="signal_big.png" SmallIcon="signal.png">
+      <Label>Control &amp; Dataflow</Label>
+    </Node>
+
 
     <Node type="GoodAI.Modules.Common.MultiplexerNode" CanBeAdded="true">
       <Label>Control &amp; Dataflow</Label>
@@ -201,6 +214,7 @@
     </Node>
 
     <Node type="GoodAI.Modules.NeuralNetwork.Group.MyNeuralNetworkGroup" CanBeAdded="true" BigIcon="network_big.png" SmallIcon="network.png">
+      <Observer type="GoodAI.Modules.Observers.MyNeuralNetworkGroupObserver" />
       <Label>Neural Networks</Label>
     </Node>
     <Node type="GoodAI.Modules.NeuralNetwork.Layers.MyHiddenLayer" CanBeAdded="true" BigIcon="hidden_layer_big.png" SmallIcon="hidden_layer.png">
@@ -235,6 +249,10 @@
       <Label>Neural Networks</Label>
     </Node>
 
+    <Node type="GoodAI.Modules.DyBM.MyDyBMInputLayer" CanBeAdded="true" BigIcon="input_RBM_layer_big.png" SmallIcon="input_RBM_layer.png">
+      <Label>Neural Networks</Label>
+    </Node>
+    
     <Node type="GoodAI.Modules.RBM.MyRBMGroup" CanBeAdded="true" BigIcon="network_RBM_big.png" SmallIcon="network_RBM.png">
       <Label>Neural Networks</Label>
     </Node>
@@ -253,6 +271,10 @@
       <Label>Neural Networks</Label>
     </Node>
     <Node type="GoodAI.Modules.Scripting.MyCSharpNode" CanBeAdded="true" BigIcon="csharp_big.png" SmallIcon="csharp.png">
+      <Label>Scripting</Label>
+    </Node>
+
+    <Node type="GoodAI.Modules.Scripting.MyCSharpNodeGroup" CanBeAdded="true" BigIcon="csharp_group_big.png" SmallIcon="csharp_group.png">
       <Label>Scripting</Label>
     </Node>
 
@@ -329,6 +351,8 @@
     <Category Name="Reinforcement Learning" SmallIcon="reward.png"></Category>
     <Category Name="Scripting" SmallIcon="scripting.png"></Category>
     <Category Name="Symbolic ML" SmallIcon="book.png"></Category>
+    <Category Name="STCB" SmallIcon="STCBGroup.png"></Category>
+    <Category Name="ToyArch" SmallIcon="ToyArch.png"></Category>
     <!--<Category Name="Transformations" SmallIcon="function.png"></Category>-->
     <Category Name="Vision" SmallIcon="observer.png"></Category>
   </Categories>

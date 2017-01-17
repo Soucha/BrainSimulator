@@ -37,8 +37,6 @@ namespace GoodAI.Modules.LSTM.Tasks
         private MyCudaKernel m_cellStateFeedForwardKernel;
         private MyCudaKernel m_outputStateFeedForwardKernel;
 
-        private MyCudaKernel m_segmented;
-
         public MyLSTMFeedForwardTask() { }
 
         public override void Init(int nGPU)
@@ -55,8 +53,6 @@ namespace GoodAI.Modules.LSTM.Tasks
                     m_netInputFeedForwardKernel.DynamicSharedMemory = 512 * sizeof(float);
                     m_netInputFeedForwardKernel.GridDimensions = Owner.MemoryBlocks;
                     m_netInputFeedForwardKernel.BlockDimensions = 512;
-
-                    m_segmented = MyReductionFactory.Kernel(nGPU, MyReductionFactory.Mode.f_Sum_f, Owner.MemoryBlocks);
 
                     m_cellStateFeedForwardKernel = MyKernelFactory.Instance.Kernel(nGPU, @"LSTM\LSTMFeedForwardKernel", "CellStateFeedForwardKernelBPTT");
                     m_cellStateFeedForwardKernel.BlockDimensions = Owner.MemoryBlocks;
@@ -348,7 +344,7 @@ namespace GoodAI.Modules.LSTM.Tasks
                 }
             }
 
-            Owner.InnerCellStates.CopyFromMemoryBlock(Owner.CellStates, 0, 0, Owner.CellStates.Count);
+            Owner.CellStates.CopyToMemoryBlock(Owner.InnerCellStates, 0, 0, Owner.InnerCellStates.Count);
 
         }
     }

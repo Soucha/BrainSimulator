@@ -20,9 +20,13 @@ pages:
     - Discrete Q-Learning: 'guides/discreteqlearning.md'
     - Image Processing: 'guides/improc.md'
     - Restricted Boltzmann Machine: 'guides/rbm.md'
+    - Automated node and brain testing: 'guides/brain_testing.md'
+    - Project Runner: 'guides/projectrunner.md'
+    - Python API: 'guides/pythonapi.md'
 
 - Examples:
     - Worlds: 'examples/worlds.md'
+    - ToyWorld: 'examples/toyWorld.md'
     - Matrix Node: 'examples/matrix.md'
     - Neural Network: 'examples/neuralnetwork.md'
     - Discrete Q-Learning: 'examples/discreteqlearning.md'
@@ -33,6 +37,7 @@ pages:
     - Nupic Node: 'examples/nupic.md'
     - Loop group: 'examples/loopgroup.md'
     - Genetic Training World: 'examples/genetic.md'
+    - School for AI: 'examples/school.md'
 
 - Changelog: 'changelog.md'
 markdown_extensions:

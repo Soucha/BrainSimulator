@@ -116,6 +116,11 @@ namespace GoodAI.Core.Memory
             else return EMPTY_LIST;
         }
 
+        public bool IsRegistered(MyNode holder)
+        {
+            return m_memoryBlocks.ContainsKey(holder);
+        }
+
         public MyAbstractMemoryBlock GetMemoryBlockByName(MyNode holder, string name)
         {
             List<MyAbstractMemoryBlock> blocks = GetBlocks(holder);
@@ -300,55 +305,23 @@ namespace GoodAI.Core.Memory
             IterateBlocks(holder, true, action);
         }
 
-        public Dictionary<string, MemBlockAttribute> CollectMemBlockAttributes()
-        {
-            var attributes = new Dictionary<string, MemBlockAttribute>();
-
-            MyMemoryBlockSerializer serializer = new MyMemoryBlockSerializer();
-            
-            foreach (var memoryBlockList in m_memoryBlocks.Values)
-            {
-                foreach (var memoryBlock in memoryBlockList)
-                {
-                    serializer.CollectAttributes(memoryBlock as MyAbstractMemoryBlock, attributes);
-                }
-            }
-
-            return attributes;
-        }
-
+        // TODO: remove?
         private IDictionary<string, MyAbstractMemoryBlock> CollectMemoryBlocks()
         {
             var memBlocks = new Dictionary<string, MyAbstractMemoryBlock>();
 
-            foreach (var memoryBlockList in m_memoryBlocks.Values)  // TODO(Premek): resolve duplicity with CollectMemBlockAttributes() 
+            foreach (var memoryBlockList in m_memoryBlocks.Values)
             {
-                foreach (var memoryBlock in memoryBlockList)
+                foreach (MyAbstractMemoryBlock memoryBlock in memoryBlockList)
                 {
                     string memBlockName = MyMemoryBlockSerializer.GetUniqueName(memoryBlock);
 
-                    if (!memBlocks.ContainsKey(memBlockName))  // TODO(Premek): encounterted duplicate world node, figure out why
+                    if (!memBlocks.ContainsKey(memBlockName))
                         memBlocks.Add(memBlockName, memoryBlock);
                 }
             }
 
             return memBlocks;
-        }
-
-        public void ApplyMemBlockAttributes(IDictionary<string, MemBlockAttribute> attributes)
-        {
-            if (attributes == null || attributes.Count == 0)
-                return;
-
-            var memBlocks = CollectMemoryBlocks();
-
-            foreach (var pair in attributes)
-            {
-                if (memBlocks.ContainsKey(pair.Key))
-                {
-                    pair.Value.ApplyAttribute(memBlocks[pair.Key]);
-                }
-            }
         }
     }
 }

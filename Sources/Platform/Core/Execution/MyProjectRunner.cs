@@ -13,11 +13,12 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Diagnostics;
+using GoodAI.TypeMapping;
 
 /*
 # How to use MyProjectRunner
 
-MyProjectRunner is an alternative to BrainSimulator GUI - you can use it to operate with projects without using GUI. 
+MyProjectRunner is an alternative to BrainSimulator GUI - you can use it to operate with projects without using GUI.
 That is especially handy if you want to:
 * Edit 10s or 100s of nodes at once
 * Try multiple values for one parameter and watch how it will affect results
@@ -45,7 +46,7 @@ That is especially handy if you want to:
     runner.Shutdown();
 
 ## More advanced example
-    
+
     // Program tries different combinations of parameters for two nodes, computes average values for multiple runs, log results and saves them to file.
 
     MyProjectRunner runner = new MyProjectRunner(MyLogLevel.WARNING);
@@ -86,16 +87,19 @@ That is especially handy if you want to:
 
 namespace GoodAI.Core.Execution
 {
-    public class MyProjectRunner
+    /// <summary>
+    /// Alternative to BrainSimulator GUI used to run brains through scripting
+    /// </summary>
+    public class MyProjectRunner : IDisposable
     {
-        private static MyProject m_project;
+        private MyProject m_project;
 
-        public static MySimulationHandler SimulationHandler { get; private set; }
+        public MySimulationHandler SimulationHandler { get; private set; }
 
         private int m_resultIdCounter;
         protected delegate float[] MonitorFunc(MySimulation simulation);
-        private static List<Tuple<int, uint, MonitorFunc>> m_monitors { get; set; }
-        private static Hashtable m_results;
+        private List<Tuple<int, uint, MonitorFunc>> m_monitors;
+        private readonly Hashtable m_results;
 
         /// <summary>
         /// Definition for filtering function
@@ -104,7 +108,7 @@ namespace GoodAI.Core.Execution
         /// <returns></returns>
         public delegate bool FilterFunc(MyNode node);
 
-        public static MyProject Project
+        public MyProject Project
         {
             get { return m_project; }
             private set
@@ -115,6 +119,7 @@ namespace GoodAI.Core.Execution
                 }
                 m_project = value;
                 SimulationHandler.Project = value;
+                m_project.SimulationHandler = SimulationHandler;
             }
         }
 
@@ -125,7 +130,16 @@ namespace GoodAI.Core.Execution
 
         public MyProjectRunner(MyLogLevel level = MyLogLevel.DEBUG)
         {
-            MySimulation simulation = new MyLocalSimulation();
+            // why not to directly ask for TypeMap.GetInstance<MySimulation> ?
+            // because in Typemap configuration, MySimulation is set to be singleton - this causes problems when MyProjectRunner
+            // is instantiated multiple times - second and following instances obtain an instance of MySimulation from the first
+            // MyProjectRunner instance. If the first MyProjectRunner instance was Shutdown-ed, the MySimulation instance is also
+            // cleared and any following Shutdown on other MyProjectRunner instances will cause freeze/inifnite hang.
+            // This code creates new MySimulation instance for each MyProjectRunner instance.
+            // Other solution could be to not have a MySimulation as a singleton in TypeMap configuration - and it could work just OK,
+            // because in BrainSim, the TypeMap's GetInstance on MySimulation is only on one place in MainForm. However, this may change
+            // in future or the change itself may have other consequences, so for now I pick this solution, as it is safer.
+            MySimulation simulation = new MyLocalSimulation(TypeMap.GetInstance<MyValidator>(), TypeMap.GetInstance<IMyExecutionPlanner>());
             SimulationHandler = new MySimulationHandler(simulation);
             m_resultIdCounter = 0;
 
@@ -151,7 +165,7 @@ namespace GoodAI.Core.Execution
             catch (Exception e)
             {
                 MyLog.WARNING.WriteLine(e.Message);
-                Environment.Exit(1);
+                throw;
             }
 
             MyLog.Level = level;
@@ -188,7 +202,7 @@ namespace GoodAI.Core.Execution
         {
             // Comparing strings is a really really bad hack. But == comparison of GetType() (or typeof) and type or using Equals methods stopped working.
             // And you cannot use "is" since the "type" is known at the execution time
-            FilterFunc filter = x => { if (x.GetType().ToString() == type.ToString()) return true; return false; };
+            FilterFunc filter = (x => x.GetType().ToString() == type.ToString());
             return Filter(filter);
         }
 
@@ -227,7 +241,7 @@ namespace GoodAI.Core.Execution
         {
             MyMemoryBlock<float> block = GetMemBlock(nodeId, blockName);
             block.SafeCopyToHost();
-            return block.Host as float[];
+            return block.Host;
         }
 
         /// <summary>
@@ -272,6 +286,11 @@ namespace GoodAI.Core.Execution
             SimulationHandler.Finish();
         }
 
+        public void Dispose()
+        {
+            Shutdown();
+        }
+
         /// <summary>
         /// Loads project from file
         /// </summary>
@@ -284,7 +303,7 @@ namespace GoodAI.Core.Execution
 
             try
             {
-                string newProjectName = Path.GetFileNameWithoutExtension(path);
+                string newProjectName = MyProject.MakeNameFromPath(path);
 
                 content = ProjectLoader.LoadProject(path,
                     MyMemoryBlockSerializer.GetTempStorage(newProjectName));
@@ -295,7 +314,7 @@ namespace GoodAI.Core.Execution
                     backup.Forget();
                 }
 
-                Project.Name = newProjectName;
+                Project.FileName = path;
             }
             catch (Exception e)
             {
@@ -308,13 +327,16 @@ namespace GoodAI.Core.Execution
         /// Saves project to given path
         /// </summary>
         /// <param name="path">Path for saving .brain/.brainz file</param>
-        public void SaveProject(string path)
+        public void SaveProject(string path = null)
         {
-            MyLog.INFO.WriteLine("Saving project: " + path);
+            if (!string.IsNullOrEmpty(path))
+                Project.FileName = path;
+
+            MyLog.INFO.WriteLine("Saving project: " + Project.FileName);
             try
             {
-                string fileContent = Project.Serialize(Path.GetDirectoryName(path));
-                ProjectLoader.SaveProject(path, fileContent,
+                string fileContent = Project.Serialize();
+                ProjectLoader.SaveProject(Project.FileName, fileContent,
                     MyMemoryBlockSerializer.GetTempStorage(Project));
             }
             catch (Exception e)
@@ -514,14 +536,9 @@ namespace GoodAI.Core.Execution
                     return;
                 }
 
-                MyValidator validator = new MyValidator();
-                validator.Simulation = SimulationHandler.Simulation;
-                validator.ClearValidation();
+                SimulationHandler.Simulation.Validate(Project);
 
-                Project.World.ValidateWorld(validator);
-                Project.Network.Validate(validator);
-
-                validator.Simulation = null;
+                MyValidator validator = SimulationHandler.Simulation.Validator;
 
                 if (!validator.ValidationSucessfull)
                 {
@@ -553,6 +570,18 @@ namespace GoodAI.Core.Execution
             m_monitors.Clear();
             m_results.Clear();
             m_resultIdCounter = 0;
+        }
+
+        public MyProject CreateProject(Type worldType, string projectName = null)
+        {
+            Project = new MyProject
+            {
+                Network = new MyNetwork()
+            };
+
+            Project.CreateWorld(worldType);
+
+            return Project;
         }
     }
 }

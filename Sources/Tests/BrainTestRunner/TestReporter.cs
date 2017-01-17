@@ -25,14 +25,22 @@ namespace GoodAI.Tests.BrainTestRunner
 
         public void AddFail(BrainTest test, Exception e)
         {
-            Evaluate(passed: false);
-            PrintLine("    FAIL", test, e.Message, ConsoleColor.Red);
+            Evaluate(passed: test.ExpectedToFail);
+
+            if (test.ExpectedToFail)
+                PrintLine("      XF", test, "(Expected to fail.)", ConsoleColor.DarkGray);
+            else
+                PrintLine("    FAIL", test, e.Message, ConsoleColor.Red);
         }
 
         public void AddPass(BrainTest test)
         {
-            Evaluate(passed: true);
-            PrintLine("      OK", test);
+            Evaluate(passed: !test.ExpectedToFail);
+
+            if (test.ExpectedToFail)
+                PrintLine(" Unexpected OK!", test, "Expected to fail!", ConsoleColor.Red);
+            else
+                PrintLine("      OK", test);
         }
 
         public void AddCrash(BrainTest test, Exception e)
@@ -80,12 +88,7 @@ namespace GoodAI.Tests.BrainTestRunner
             Console.Write(" {0, -10} ", what);
             Console.ResetColor();
 
-            Console.WriteLine("{0}{1}", GetTestName(test), string.IsNullOrEmpty(message) ? "" : ": " + message);
-        }
-
-        private static string GetTestName(BrainTest test)
-        {
-            return test.GetType().ToString();
+            Console.WriteLine("{0}{1}", test.Name, string.IsNullOrEmpty(message) ? "" : ": " + message);
         }
     }
 }

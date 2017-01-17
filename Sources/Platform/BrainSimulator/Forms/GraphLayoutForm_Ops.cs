@@ -15,6 +15,7 @@ using System.Windows.Forms;
 using GoodAI.BrainSimulator.Utils;
 using GoodAI.Core.Execution;
 using GoodAI.Core.Task;
+using System.Diagnostics;
 
 namespace GoodAI.BrainSimulator.Forms
 {
@@ -102,6 +103,8 @@ namespace GoodAI.BrainSimulator.Forms
             }
 
             targetItems.Add(newButton);
+
+            // TODO: Add undo here if we also want to undo non-model-related actions
         }
 
         void newButton_MouseUp(object sender, MouseEventArgs e)
@@ -126,6 +129,8 @@ namespace GoodAI.BrainSimulator.Forms
             {
                 quickToolBarNodes.Remove(typeName);
                 nodesToolStrip.Items.Remove(nodeButton);
+
+                // TODO: Add undo here if we also want to undo non-model-related actions
             }
         }
 
@@ -201,10 +206,13 @@ namespace GoodAI.BrainSimulator.Forms
                 if (connection != null)
                 {
                     MyNodeView fromNodeView = nodeViewTable[connection.From];
-                    NodeItem fromNodeViewItem = fromNodeView.GetOuputBranchItem(connection.FromIndex);                    
+                    NodeItem fromNodeViewItem = fromNodeView.GetOuputBranchItem(connection.FromIndex);
 
-                    NodeConnection c = Desktop.Connect(fromNodeViewItem, toNodeView.GetInputBranchItem(connection.ToIndex));
+                    MyNodeViewConnection c = Desktop.Connect(fromNodeViewItem, toNodeView.GetInputBranchItem(connection.ToIndex)) as MyNodeViewConnection;
+                    Debug.Assert(c != null, "Invalid connection factory delegate");
+
                     c.Tag = connection;
+                    c.Hidden = connection.IsHidden;
                 }
             }       
         }
@@ -222,9 +230,15 @@ namespace GoodAI.BrainSimulator.Forms
             Node nodeView = Desktop.Nodes.First(nw => (nw as MyNodeView).Node == node);
 
             if (nodeView != null)
-            {
                 Desktop.FocusElement = nodeView;
-            }
+        }
+
+        public void SelectNodeView(int nodeId)
+        {
+            Node nodeView = Desktop.Nodes.FirstOrDefault(nw => (nw as MyNodeView).Node.Id == nodeId);
+
+            if (nodeView != null)
+                Desktop.FocusElement = nodeView;
         }
 
         void SimulationHandler_StateChanged(object sender, MySimulationHandler.StateEventArgs e)

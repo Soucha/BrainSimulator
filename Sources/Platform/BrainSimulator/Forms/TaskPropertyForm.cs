@@ -4,6 +4,7 @@ using GoodAI.Core.Utils;
 using System.ComponentModel;
 using System.Windows.Forms;
 using GoodAI.Core.Dashboard;
+using GoodAI.Core.Nodes;
 using WeifenLuo.WinFormsUI.Docking;
 
 namespace GoodAI.BrainSimulator.Forms
@@ -16,6 +17,8 @@ namespace GoodAI.BrainSimulator.Forms
         {
             if (PropertyChanged != null)
                 PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+
+            m_mainForm.ProjectStateChanged(string.Format("Task property value changed: {0}", propertyName));
         }
 
         private MainForm m_mainForm;
@@ -37,19 +40,10 @@ namespace GoodAI.BrainSimulator.Forms
         {
             OnPropertyChanged(e.ChangedItem.PropertyDescriptor.Name);
 
-            //TODO: rewrite this, no need to loop all, just topmost
-            foreach (GraphLayoutForm graphView in m_mainForm.GraphViews.Values)
-            {
-                if (graphView.Desktop.FocusElement is MyNodeView)
-                {
-                    MyNodeView nodeView = graphView.Desktop.FocusElement as MyNodeView;
-                    nodeView.UpdateView();
-                }                
-                graphView.Desktop.Invalidate();
-            }
+            Target.GenericOwner.Updated();
         }
 
-        public void RefreshGrid()
+        public void RefreshView()
         {
             propertyGrid.Refresh();
         }

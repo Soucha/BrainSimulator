@@ -16,7 +16,7 @@ namespace GoodAI.BrainSimulator.Forms
     public partial class DebugForm : DockContent
     {
         private readonly MainForm m_mainForm;        
-        private MyExecutionPlan[] m_executionPlan;
+        private MyExecutionPlan m_executionPlan;
 
 
         private MyDebugNode CreateDebugNode(IMyExecutable executable)
@@ -25,7 +25,7 @@ namespace GoodAI.BrainSimulator.Forms
 
             if (executable is MyTask)
             {
-                result = new MyDebugTaskNode(executable as MyTask);
+                result = new MyDebugTaskNode(executable as MyTask, () => m_mainForm.TaskView.RefreshView());
             }
             else
             {
@@ -64,8 +64,17 @@ namespace GoodAI.BrainSimulator.Forms
                 m_mainForm.Breakpoints.Remove(args.Node.Executable);
         }
 
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            UpdateDebugListView();
+        }
+
         private void UpdateDebugListView()
         {
+            if (IsHidden)
+                return;
+
             // Clean up the event handlers.
             foreach (var node in debugTreeView.AllNodes)
             {
@@ -77,13 +86,11 @@ namespace GoodAI.BrainSimulator.Forms
 
             if (m_executionPlan != null)
             {
-                TreeModel treeModel = new TreeModel();
+                var treeModel = new TreeModel();
 
-                for (int i = 0; i < 1; i++)
-                {
-                    treeModel.Nodes.Add(CreateDebugNode(m_executionPlan[i].InitStepPlan));
-                    treeModel.Nodes.Add(CreateDebugNode(m_executionPlan[i].StandardStepPlan));
-                }
+                if (m_executionPlan.InitStepPlan != null)
+                    treeModel.Nodes.Add(CreateDebugNode(m_executionPlan.InitStepPlan));
+                treeModel.Nodes.Add(CreateDebugNode(m_executionPlan.StandardStepPlan));
 
                 debugTreeView.Model = treeModel;
                 debugTreeView.ExpandAll();
@@ -124,21 +131,15 @@ namespace GoodAI.BrainSimulator.Forms
             stepOverButton.Enabled = simulationHandler.CanStepOver;
             pauseToolButton.Enabled = simulationHandler.CanPause;
 
-            if (e.NewState == MySimulationHandler.SimulationState.RUNNING)
-            {
-                if (m_executionPlan == null)
-                    UpdateDebugListView();
-            }
-            else if (e.NewState == MySimulationHandler.SimulationState.PAUSED)
-            {
-                if (m_executionPlan == null)
-                    UpdateDebugListView();
+            UpdateDebugListView();
 
+            if (e.NewState == MySimulationHandler.SimulationState.PAUSED)
+            {
                 if (simulationHandler.Simulation.InDebugMode)
                 {
                     noDebugLabel.Visible = false;
 
-                    MyExecutionBlock currentBlock = simulationHandler.Simulation.CurrentDebuggedBlocks[0];
+                    MyExecutionBlock currentBlock = simulationHandler.Simulation.CurrentDebuggedBlock;
                     m_selectedNodeView = null;
 
                     if (currentBlock != null && currentBlock.CurrentChild != null)
@@ -387,7 +388,7 @@ namespace GoodAI.BrainSimulator.Forms
 
         public IMyExecutable Executable { get; private set; }
 
-        public MyDebugNode(IMyExecutable executable): base(executable.Name)
+        public MyDebugNode(IMyExecutable executable): base(executable.Name ?? string.Empty)
         {
             BackgroundColor = Color.White;
 
@@ -421,12 +422,25 @@ namespace GoodAI.BrainSimulator.Forms
             {
                 return Executable.Enabled;
             }
+            set
+            {
+                var task = Executable as MyTask;
+                if (task != null)
+                {
+                    task.Enabled = value;
+                    if (m_enabledCallback != null)
+                        m_enabledCallback();
+                }
+            }
         }
 
-        public MyDebugTaskNode(MyTask task): base(task)
+        public MyDebugTaskNode(MyTask task, Action enabledCallback): base(task)
         {
             Icon = Properties.Resources.gears;
             OwnerName = task.GetType().Name;
+            m_enabledCallback = enabledCallback;
         }
+
+        private readonly Action m_enabledCallback;
     }
 }

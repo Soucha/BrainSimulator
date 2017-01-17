@@ -12,7 +12,7 @@ using System.Reflection;
 
 namespace GoodAI.BrainSimulator.NodeView
 {
-    internal class MyNodeView : Node
+    internal class MyNodeView : Node, IDisposable
     {
         private MyNode m_node;
         public MyNode Node 
@@ -27,6 +27,12 @@ namespace GoodAI.BrainSimulator.NodeView
             }
         }
 
+        public void Dispose()
+        {
+            if (m_node != null)
+                m_node.NodeUpdated -= OnNodeUpdated;
+        }
+
         public MyNodeConfig Config { get; private set; }
 
         protected NodeImageItem m_iconItem;
@@ -35,6 +41,7 @@ namespace GoodAI.BrainSimulator.NodeView
         private MyStatusBarItem m_statusBar;
         private MyStatusBarItem.IconSubitem m_loadSubitem;
         private MyStatusBarItem.IconSubitem m_saveSubitem;
+        private MyStatusBarItem.IconSubitem m_scriptSubitem;
 
         protected Image m_icon;        
 
@@ -136,6 +143,7 @@ namespace GoodAI.BrainSimulator.NodeView
 
             m_loadSubitem = m_statusBar.AddIcon(Properties.Resources.open_mb_12);
             m_saveSubitem = m_statusBar.AddIcon(Properties.Resources.save_mb_12);
+            m_scriptSubitem = m_statusBar.AddIcon(Properties.Resources.text_12xMD);
 
             UpdateStatusBar();
             
@@ -152,6 +160,7 @@ namespace GoodAI.BrainSimulator.NodeView
 
             m_loadSubitem.Enabled = workingNode.LoadOnStart;
             m_saveSubitem.Enabled = workingNode.SaveOnStop;
+            m_scriptSubitem.Enabled = workingNode is IScriptableNode;
         }
 
         public virtual void UpdateView()
@@ -168,6 +177,7 @@ namespace GoodAI.BrainSimulator.NodeView
             }
 
             UpdateStatusBar();
+            Owner.Invalidate();
         }           
 
         public override void OnEndDrag()
@@ -234,6 +244,10 @@ namespace GoodAI.BrainSimulator.NodeView
             {
                 return new MyUserInputView(config, owner);
             }
+            if (typeof(DeviceInput).IsAssignableFrom(nodeType))
+            {
+                return new DeviceInputView(config, owner);
+            }
             if (typeof(MyGateInput).IsAssignableFrom(nodeType))
             {
                 return new MyGateInputView(config, owner);
@@ -260,6 +274,5 @@ namespace GoodAI.BrainSimulator.NodeView
 
             return nodeView;
         }
-        
     }
 }

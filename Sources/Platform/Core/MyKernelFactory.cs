@@ -2,6 +2,7 @@
 using GoodAI.Core.Memory;
 using GoodAI.Core.Nodes;
 using GoodAI.Core.Utils;
+using GoodAI.Modules.Transforms;
 using ManagedCuda;
 using ManagedCuda.BasicTypes;
 using ManagedCuda.CudaRand;
@@ -11,15 +12,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace GoodAI.Core
 {
     public class MyCudaKernel
     {
-        public int MAX_THREADS { get; private set;  }
+        public int MAX_THREADS { get; protected set;  }
 
-        private CudaKernel m_kernel;
-        private int m_GPU;
+        protected CudaKernel m_kernel;
+        protected int m_GPU;
 
         public string KernelName { get { return m_kernel.KernelName; } }
         public dim3 BlockDimensions { get { return m_kernel.BlockDimensions; } set {m_kernel.BlockDimensions = value; } }
@@ -61,6 +63,7 @@ namespace GoodAI.Core
                     }
                 }
             }
+
             m_kernel.Run(args);
         }
 
@@ -148,7 +151,7 @@ namespace GoodAI.Core
             return m_randDevices[callee.GPU];
         }
 
-        private MyKernelFactory()
+        protected MyKernelFactory()
         {
             ContextsCreate();
             m_ptxModules = new Dictionary<string, CUmodule>[DevCount];
@@ -223,29 +226,61 @@ namespace GoodAI.Core
             return kernel;
         }
 
-        //TODO: rewrite this! repetitive code
-
-        public MyCudaKernel Kernel(int nGPU, string ptxFileName, string kernelName, bool forceNewInstance = false)
+        private MyCudaKernel Kernel(int GPU, Assembly callingAssembly, string ptxFileName, string kernelName, bool forceNewInstance = false)
         {
-            FileInfo assemblyFile = MyConfiguration.AssemblyLookup[Assembly.GetCallingAssembly()].File;
+            FileInfo assemblyFile = GetAssemblyFile(callingAssembly);
+            string ptxFolder = assemblyFile.DirectoryName + @"\ptx\";
 
-            return Kernel(nGPU, assemblyFile.DirectoryName + @"\ptx\", ptxFileName, kernelName, forceNewInstance);
+            return Kernel(GPU, ptxFolder, ptxFileName, kernelName, forceNewInstance);
         }
 
+        private static FileInfo GetAssemblyFile(Assembly callingAssembly)
+        {
+            return MyConfiguration.AssemblyLookup[callingAssembly.FullName].File;
+        }
+
+        private static string GetKernelNameFromPtx(string ptxFileName)
+        {
+            return ptxFileName.Substring(ptxFileName.LastIndexOf('\\') + 1);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public MyCudaKernel Kernel(int nGPU, string ptxFileName, string kernelName, bool forceNewInstance = false)
+        {
+            return Kernel(nGPU, Assembly.GetCallingAssembly(), ptxFileName, kernelName, forceNewInstance);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public MyCudaKernel Kernel(int nGPU, string ptxFileName, bool forceNewInstance = false)
         {
-            FileInfo assemblyFile = MyConfiguration.AssemblyLookup[Assembly.GetCallingAssembly()].File;
+            return Kernel(nGPU, Assembly.GetCallingAssembly(), ptxFileName, GetKernelNameFromPtx(ptxFileName), forceNewInstance);            
+        }
 
-            return Kernel(nGPU, assemblyFile.DirectoryName + @"\ptx\", ptxFileName, ptxFileName.Substring(ptxFileName.LastIndexOf('\\') + 1), forceNewInstance);            
+        public MyReductionKernel<T> KernelReduction<T>(MyNode owner, int nGPU, ReductionMode mode,
+            int bufferSize = MyParallelKernel<T>.BUFFER_SIZE, bool forceNewInstance = false) where T : struct
+        {
+            return new MyReductionKernel<T>(owner, nGPU, mode, bufferSize);
+        }
+
+        public MyProductKernel<T> KernelProduct<T>(MyNode owner, int nGPU, ProductMode mode,
+            int bufferSize = MyParallelKernel<T>.BUFFER_SIZE, bool forceNewInstance = false) where T : struct
+        {
+            return new MyProductKernel<T>(owner, nGPU, mode, bufferSize);
+        }
+
+        public MyCudaKernel KernelVector(int nGPU, KernelVector kernelName)
+        {
+            //Because the method Kernel is called from this method, it will look (via the Assembly.GetCallingAssembly()) for the kernels in BasicNodesCuda and not in the place from where the method KernelVector is called.
+            return Instance.Kernel(nGPU, @"Transforms\KernelVector", kernelName.ToString()); 
         }
 
         // !!! Warning: This is for testing purposes only.
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public MyCudaKernel Kernel(string name, bool forceNewInstance = false)
         {
-            FileInfo assemblyFile = MyConfiguration.AssemblyLookup[Assembly.GetCallingAssembly()].File;
-
-            return Kernel(DevCount - 1, assemblyFile.DirectoryName + @"\ptx\", name, name.Substring(name.LastIndexOf('\\') + 1), forceNewInstance);                        
+            return Kernel(DevCount - 1, Assembly.GetCallingAssembly(), name, GetKernelNameFromPtx(name), forceNewInstance);                        
         }
+
 
         public int DevCount
         {

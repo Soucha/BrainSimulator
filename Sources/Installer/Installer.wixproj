@@ -39,7 +39,6 @@
     <Content Include="HeatFilterModules.xslt" />
     <Content Include="Resources\brainSim_installBanner_owl.bmp" />
     <Content Include="Resources\brainSim_installBanner_splash.bmp" />
-    <Content Include="Resources\EULA.rtf" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Libs\3rd\Graph\Graph.csproj">
@@ -61,6 +60,14 @@
     <ProjectReference Include="..\Libs\3rd\YAXLib\YAXLib\YAXLib.csproj">
       <Name>YAXLib</Name>
       <Project>{f1c4d174-c948-4d18-a125-f6855ef55683}</Project>
+      <Private>True</Private>
+      <DoNotHarvest>True</DoNotHarvest>
+      <RefProjectOutputGroups>Binaries;Content;Satellites</RefProjectOutputGroups>
+      <RefTargetDir>INSTALLFOLDER</RefTargetDir>
+    </ProjectReference>
+    <ProjectReference Include="..\Libs\TypeMap\TypeMap\TypeMap.csproj">
+      <Name>TypeMap</Name>
+      <Project>{86955c47-2a02-41a4-ab32-c9e592eb2971}</Project>
       <Private>True</Private>
       <DoNotHarvest>True</DoNotHarvest>
       <RefProjectOutputGroups>Binaries;Content;Satellites</RefProjectOutputGroups>

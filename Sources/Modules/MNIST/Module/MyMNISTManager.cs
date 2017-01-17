@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using GoodAI.Core.Utils;
+
+using System.Diagnostics;
 
 /*
  * Import of MNIST done by: http://jamesmccaffrey.wordpress.com/2013/11/23/reading-the-mnist-data-set-with-c/
@@ -17,21 +21,35 @@ namespace MNIST
         SendNothing
     }
 
+    public enum MNISTSetType
+    {
+        Training,
+        Test
+    }
+
     public class MyMNISTManager
     {
-        private int m_imagesServed;
-        public int m_imagesDemand;
+        private int m_lastServedImage;
+        public int m_trainingExamplesPerDigitCnt;
+        public int m_testExamplesPerDigitCnt;
         private string m_baseFolder;
-        private ArrayList m_images;
+        private ArrayList m_trainingImages;
+        private ArrayList m_testImages;
         private MyMNISTImage m_blankImage;
-        private IEnumerator m_imageEnumerator;
+        private IEnumerator m_trainingImagesEnumerator;
+        private IEnumerator m_testImagesEnumerator;
         private MNISTLastImageMethod m_afterLastImage;
 
         public int m_sequenceIterator;
         public bool m_definedOrder;
 
         public bool RandomEnumerate = false;
-        private Random rand = new Random();
+        private Random rand;
+
+
+        public bool initialized = false;
+        public bool[] alreadyShown;
+        public int howManyLeft;
 
         /// <summary>
         /// Converts between little-endian and big-endian
@@ -52,142 +70,251 @@ namespace MNIST
         /// <param name="imagesCnt">How many images to load</param>
         /// <param name="exact">If TRUE, you will get exactly imagesCnt images. If FALSE, you will get AT MOST imagesCnt images. It's here for performance reason and BC</param>
         /// <param name="afterLastImage">What to do, after the last values has been sent</param>
-        public MyMNISTManager(string baseFolder, int imagesCnt = int.MaxValue, bool exact = false, MNISTLastImageMethod afterLastImage = MNISTLastImageMethod.ResetToStart)
+        public MyMNISTManager(string baseFolder, int trainingExamplesPerDigitCnt = int.MaxValue, int testExamplesPerDigitCnt = int.MaxValue,
+            bool exact = false, MNISTLastImageMethod afterLastImage = MNISTLastImageMethod.ResetToStart, int randomSeed = 0)
         {
-            m_baseFolder = baseFolder;
-            m_images = new ArrayList();
-            m_afterLastImage = afterLastImage;
-            m_imagesDemand = imagesCnt;
-            m_imagesServed = 0;
-            m_sequenceIterator = 0;
-            m_definedOrder = false;
-
-            FileStream ifsTrainLabels = new FileStream(m_baseFolder + "train-labels.idx1-ubyte", FileMode.Open, FileAccess.Read);
-            FileStream ifsTrainImages = new FileStream(m_baseFolder + "train-images.idx3-ubyte", FileMode.Open, FileAccess.Read);
-
-            BinaryReader brTrainLabels = new BinaryReader(ifsTrainLabels);
-            BinaryReader brTrainImages = new BinaryReader(ifsTrainImages);
-
-            //Magic number
-            brTrainLabels.ReadInt32();
-            brTrainImages.ReadInt32();
-
-            int numImagesTrainLables = brTrainLabels.ReadInt32();
-            numImagesTrainLables = ReverseBytes(numImagesTrainLables);
-            int numImagesTrainImages = brTrainImages.ReadInt32();
-            numImagesTrainImages = ReverseBytes(numImagesTrainImages);
-
-            int numRowsTrainImages = brTrainImages.ReadInt32();
-            numRowsTrainImages = ReverseBytes(numRowsTrainImages);
-            int numColsTrainImages = brTrainImages.ReadInt32();
-            numColsTrainImages = ReverseBytes(numColsTrainImages);
-
-            int maxImages;
-            if (exact)
+            if (randomSeed == 0)
             {
-                // numImagesTrainImages = 60000
-                maxImages = numImagesTrainImages;
+                rand = new Random();
             }
             else
             {
-                // value of 2000 is a compromise between long loading-time for maximum of 60k images and minimum of user set "imagesCnt"
-                // this also brings more flexibility for changing the m_imagesDemand during simulation (up to max(2000,imagesCnt) instead of imagesCnt)
-                maxImages = Math.Max(2000, Math.Min(numImagesTrainImages, imagesCnt));
+                rand = new Random(randomSeed);
             }
 
-            byte[][] data = new byte[numColsTrainImages][];
-            for (int i = 0; i < data.Length; ++i)
-                data[i] = new byte[numRowsTrainImages];
+            m_baseFolder = baseFolder;
+            m_trainingImages = new ArrayList();
+            m_testImages = new ArrayList();
+            m_afterLastImage = afterLastImage;
+            m_trainingExamplesPerDigitCnt = trainingExamplesPerDigitCnt;
+            m_testExamplesPerDigitCnt = testExamplesPerDigitCnt;
+            m_lastServedImage = -1;
+            m_sequenceIterator = 0;
+            m_definedOrder = false;
 
-            for (int i = 0; i < maxImages; ++i)
+            // START TIME MEASUREMENT ----------------------------------------------------------
+            //Stopwatch sw = new Stopwatch();
+            //sw.Start();
+            ReadMnistSet("train-images.idx3-ubyte", "train-labels.idx1-ubyte", m_trainingExamplesPerDigitCnt, m_trainingImages);
+            ReadMnistSet("t10k-images.idx3-ubyte", "t10k-labels.idx1-ubyte", m_testExamplesPerDigitCnt, m_testImages);
+
+            
+
+
+
+            byte[,] data = new byte[28, 28];
+            m_blankImage = new MyMNISTImage(data, 0);
+
+            m_trainingImagesEnumerator = m_trainingImages.GetEnumerator();
+            m_testImagesEnumerator = m_testImages.GetEnumerator();
+
+            //sw.Stop();
+            //Console.WriteLine("Elapsed={0}", sw.Elapsed);
+
+      
+        }
+
+        private void ReadMnistSet(String imagesInputFile, String labelsInputFile, int numDigitClasses, ArrayList images)
+        {
+            FileStream ifsLabels = new FileStream(m_baseFolder + labelsInputFile, FileMode.Open, FileAccess.Read);
+            FileStream ifsImages = new FileStream(m_baseFolder + imagesInputFile, FileMode.Open, FileAccess.Read);
+
+            BinaryReader brLabels = new BinaryReader(ifsLabels);
+            BinaryReader brImages = new BinaryReader(ifsImages);
+
+            //Magic number
+            brLabels.ReadInt32();
+            brImages.ReadInt32();
+
+            int numImagesLables = brLabels.ReadInt32();
+            numImagesLables = ReverseBytes(numImagesLables);
+            int numImages = brImages.ReadInt32();
+            numImages = ReverseBytes(numImages);
+
+            int numRowsImages = brImages.ReadInt32();
+            numRowsImages = ReverseBytes(numRowsImages);
+            int numColsImages = brImages.ReadInt32();
+            numColsImages = ReverseBytes(numColsImages);
+
+            int numOfLoadedDigitClasses = 0;
+            int[] digitCounts = new int[10];    // helper array used for loading a given number of each digit
+
+            if (numImagesLables == numImages)
             {
-                for (int j = 0; j < numColsTrainImages; ++j)
+                for (int i = 0; i < numImages; ++i)
                 {
-                    for (int k = 0; k < numRowsTrainImages; ++k)
+                    MyMNISTImage mImage = new MyMNISTImage(brImages, brLabels, numColsImages, numRowsImages);
+                    if (digitCounts[mImage.Label] < numDigitClasses)
                     {
-                        byte b = brTrainImages.ReadByte();
-                        data[j][k] = b;
+                        images.Add(mImage);
+                        digitCounts[mImage.Label]++;
+                        if (digitCounts[mImage.Label] == numDigitClasses)
+                        {
+                            numOfLoadedDigitClasses++;
+                        }
+                    }
+                    if (numOfLoadedDigitClasses == 10)
+                    {
+                        break;
                     }
                 }
-
-                byte label = brTrainLabels.ReadByte();
-                MyMNISTImage mImage = new MyMNISTImage(data, label, numColsTrainImages, numRowsTrainImages);
-                m_images.Add(mImage);
             }
 
-            ifsTrainImages.Close();
-            brTrainImages.Close();
-            ifsTrainLabels.Close();
-            brTrainLabels.Close();
-
-            m_imageEnumerator = m_images.GetEnumerator();
-
-            for (int i = 0; i < numColsTrainImages; ++i)
-                for (int j = 0; j < numRowsTrainImages; ++j)
-                    data[i][j] = 0;
-            m_blankImage = new MyMNISTImage(data, 0);
+            ifsImages.Close();
+            brImages.Close();
+            ifsLabels.Close();
+            brLabels.Close();
         }
+
+        private void DecreaseLeftCounter(int id, int totalNumberToShow)
+        {
+            howManyLeft--;
+            alreadyShown[id] = true;
+            if (howManyLeft == 0)
+            {
+                howManyLeft = totalNumberToShow;
+                for (int i = 0; i < alreadyShown.Length; i++)
+                {
+                    alreadyShown[i] = false;
+                }
+
+            }
+        }
+
+        MNISTSetType lastType = MNISTSetType.Training;
+        int[] lastValidNumbers = null;
+        bool lastRandomEnumerate = false;
+        bool lastDefineOrder = false;
+
+        private void CheckIfSomethingChaged(MNISTSetType type, int[] validNumbers, bool randomEnumerate, bool defineOrder) 
+        {
+            if (lastType != type || lastValidNumbers != validNumbers || lastRandomEnumerate != randomEnumerate || lastDefineOrder != defineOrder) 
+            {
+                lastType = type;
+                lastValidNumbers = validNumbers;
+                lastRandomEnumerate = randomEnumerate;
+                lastDefineOrder = defineOrder;
+                initialized = false;
+            }
+        }
+
 
         /// <summary>
         /// Gets the next values
         /// </summary>
         /// <param name="validNumbers">Array of integers, you want the selection restrict to.</param>
         /// <returns>Array of arrays of floats, in which the values is encoded.</returns>
-        public MyMNISTImage GetNextImage(int[] validNumbers)
+        public MyMNISTImage GetNextImage(int[] validNumbers, MNISTSetType setType)
         {
+            MyMNISTImage imageToReturn = null;
+
+            ArrayList images = null;
+            IEnumerator enumerator = null;
+            int examplesPerDigitCnt = 0;
+            if (setType == MNISTSetType.Training)
+            {
+                images = m_trainingImages;
+                enumerator = m_trainingImagesEnumerator;
+                examplesPerDigitCnt = m_trainingExamplesPerDigitCnt;
+            }
+            else if (setType == MNISTSetType.Test)
+            {
+                images = m_testImages;
+                enumerator = m_testImagesEnumerator;
+                examplesPerDigitCnt = m_testExamplesPerDigitCnt;
+            }
+
+            CheckIfSomethingChaged(setType, validNumbers, RandomEnumerate, m_definedOrder);
+
+            if (!initialized)
+            {
+                initialized = true;
+                //indicates whether this particular image was already shown. This prevents the situation that some numbers start to repeat while others do not appear on the output
+                alreadyShown = new bool[examplesPerDigitCnt * 10];
+                for (int i = 0; i < alreadyShown.Length; i++)
+                {
+                    alreadyShown[i] = false;
+                }
+
+                //how many images to show until the set starts to repeat again
+                howManyLeft = examplesPerDigitCnt * validNumbers.Length;
+                m_sequenceIterator = 0;
+                m_lastServedImage = -1;
+            }
+       
+            
             if (RandomEnumerate)
             {
-                MyMNISTImage im = (MyMNISTImage)m_images[rand.Next(Math.Min(m_imagesDemand, m_images.Count))];
+                m_lastServedImage = rand.Next(Math.Min(examplesPerDigitCnt * 10, images.Count));
+                MyMNISTImage im = (MyMNISTImage)images[m_lastServedImage];
 
-                if (m_definedOrder && im.Label != validNumbers[m_sequenceIterator] || !validNumbers.Contains(im.Label))
+                // choose random image until it is in the validNumbers set;
+                // if "sequence ordered" is ON it also has to be the expected next number in given sequence
+                if ((m_definedOrder && im.Label != validNumbers[m_sequenceIterator]) || !validNumbers.Contains(im.Label))
                 {
-                    return this.GetNextImage(validNumbers);
+                    return this.GetNextImage(validNumbers, setType);
                 }
 
-                m_sequenceIterator = (m_sequenceIterator + 1) % validNumbers.Length;
-                return im;
-            }
-            else if (m_imageEnumerator.MoveNext() && m_imagesServed < m_imagesDemand)
-            {
-                MyMNISTImage im = (MyMNISTImage)m_imageEnumerator.Current;
-                m_imagesServed++;
-
-                if (m_definedOrder)
-                {
-                    if (im.Label != validNumbers[m_sequenceIterator])
-                    {
-                        return this.GetNextImage(validNumbers);
-                    }
-                    m_sequenceIterator = (m_sequenceIterator + 1) % validNumbers.Length;
-                }
-                else
-                {
-                    if (!validNumbers.Contains(im.Label))
-                    {
-                        return this.GetNextImage(validNumbers);
-                    }
-                }
-                return im;
+                imageToReturn = im;
             }
             else
             {
-                switch (m_afterLastImage)
+                MyMNISTImage im = null;
+                while (enumerator.MoveNext() && m_lastServedImage < images.Count - 1)
                 {
-                    case MNISTLastImageMethod.ResetToStart:
+                    im = (MyMNISTImage)enumerator.Current;
+                    m_lastServedImage++;
+
+                    if (m_definedOrder)
+                    {
+                        if (im.Label == validNumbers[m_sequenceIterator])
                         {
-                            m_imageEnumerator.Reset();
-                            m_imagesServed = 0; // Hack
-                            return GetNextImage(validNumbers);
+                            imageToReturn = im;
+                            break;
                         }
-                    case MNISTLastImageMethod.SendNothing:
+                    }
+                    else
+                    {
+                        if (validNumbers.Contains(im.Label))
                         {
-                            return m_blankImage;
+                            imageToReturn = im;
+                            break;
                         }
-                    default:
-                        {
-                            return GetNextImage(validNumbers);
-                        }
+                    }
                 }
+
+                if (imageToReturn == null)
+                {
+
+                    switch (m_afterLastImage)
+                    {
+                        case MNISTLastImageMethod.ResetToStart:
+                            {
+                                enumerator.Reset();
+                                m_lastServedImage = -1;
+                                return GetNextImage(validNumbers, setType);
+                            }
+                        case MNISTLastImageMethod.SendNothing:
+                            {
+                                return m_blankImage;
+                            }
+                        default:
+                            {
+                                return GetNextImage(validNumbers, setType);
+                            }
+                    }
+                }
+            }
+
+            if (alreadyShown[m_lastServedImage])
+            {
+                return this.GetNextImage(validNumbers, setType);
+            }
+            else
+            {
+                DecreaseLeftCounter(m_lastServedImage, examplesPerDigitCnt * validNumbers.Length);
+                m_sequenceIterator = (m_sequenceIterator + 1) % validNumbers.Length;
+                return imageToReturn;
             }
         }
     }
@@ -197,7 +324,7 @@ namespace MNIST
         private int m_width;
         private int m_height;
         private byte m_label;
-        private float[][] m_data;
+        private float[,] m_data;
         private float[] m_data1d;
         private float m_min;
         private float m_max;
@@ -207,7 +334,7 @@ namespace MNIST
             get { return m_label; }
         }
 
-        public float[][] Data
+        public float[,] Data
         {
             get { return m_data; }
         }
@@ -226,8 +353,8 @@ namespace MNIST
             {
                 for (int j = 0; j < m_height; ++j)
                 {
-                    if (m_max < m_data[i][j]) { m_max = m_data[i][j]; }
-                    if (m_min > m_data[i][j]) { m_min = m_data[i][j]; }
+                    if (m_max < m_data[i, j]) { m_max = m_data[i, j]; }
+                    if (m_min > m_data[i, j]) { m_min = m_data[i, j]; }
                 }
             }
 
@@ -236,23 +363,22 @@ namespace MNIST
             {
                 for (int j = 0; j < m_height; ++j)
                 {
-                    m_data[i][j] = (m_data[i][j] - m_min) / (m_max - m_min);
+                    m_data[i, j] = (m_data[i, j] - m_min) / (m_max - m_min);
                 }
             }
         }
 
-        public MyMNISTImage(byte[][] data, byte label, int width = 28, int height = 28)
+        public MyMNISTImage(byte[,] data, byte label, int width = 28, int height = 28)
         {
             m_width = width;
             m_height = height;
             m_label = label;
-            m_data = new float[m_width][];
+            m_data = new float[m_width, m_height];
 
-            for (int i = 0; i < m_data.Length; ++i)
+            for (int i = 0; i < m_width; ++i)
             {
-                m_data[i] = new float[m_height];
                 for (int j = 0; j < m_height; ++j)
-                    m_data[i][j] = (float)data[i][j];
+                    m_data[i, j] = (float)data[i, j];
             }
 
             Normalize();
@@ -261,7 +387,35 @@ namespace MNIST
             int idx = 0;
             for (int j = 0; j < m_width; ++j)
                 for (int k = 0; k < m_height; ++k)
-                    m_data1d[idx++] = m_data[j][k]; //read from m_data, so it's also normalized
+                    m_data1d[idx++] = m_data[j, k]; //read from m_data, so it's also normalized
+        }
+
+        /// <summary>
+        /// Alternative optimized constructor; Directly reads from referenced BinaryReaders into inner data store m_data.
+        /// The normalization into <0, 1> is also performed right away with respect to min = 0, max = 255 of the read byte value.
+        /// </summary>
+        public MyMNISTImage(BinaryReader brImages, BinaryReader brLabels, int width = 28, int height = 28)
+        {
+            m_max = 255.0f;
+            m_min = 0.0f;
+            m_width = width;
+            m_height = height;
+
+            m_data = new float[m_width, m_height];
+            m_data1d = new float[m_width * m_height];
+            float normalizedValue = 0.0f;
+            int idx = 0;
+
+            for (int i = 0; i < m_width; ++i)
+            {
+                for (int j = 0; j < m_height; ++j)
+                {
+                    normalizedValue = ((float)brImages.ReadByte() - m_min) / (m_max - m_min);
+                    m_data[i, j] = normalizedValue;
+                    m_data1d[idx++] = normalizedValue;
+                }
+            }
+            m_label = brLabels.ReadByte();
         }
 
         public void ToBinary()
@@ -271,7 +425,7 @@ namespace MNIST
             for (int i = 0; i < m_width; ++i)
                 for (int j = 0; j < m_height; ++j)
                 {
-                    if (m_data[i][j] < 0.5) { m_data1d[idx++] = 0; }
+                    if (m_data[i, j] < 0.5) { m_data1d[idx++] = 0; }
                     else { m_data1d[idx++] = 1; }
                 }
         }

@@ -17,10 +17,13 @@ Debug
 Release
 *.user
 doc.xml
+*.DotSettings
+*.VC.opendb
+*.VC.db
 
 /Sources/Modules/InternalNodes
 /Sources/Modules/SeMeIntModule
 /Sources/Modules/SeMeIntegrationModule
 /Sources/packages
 Sources/Modules/EmguNodes/
-*.DotSettings
+/Sources/Modules/School/Module/conf/doc.xml

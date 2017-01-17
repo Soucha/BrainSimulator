@@ -60,10 +60,9 @@ namespace GoodAI.BrainSimulator.Forms
 
             m_recentMenu = new MruStripMenuInline(fileToolStripMenuItem, recentFilesMenuItem , RecentFiles_Click, 5);
 
-            // TODO(HonzaS): This is not UI-specific, move project loading out of here.
-            RestoreDashboard(Project);
+            Project.Restore();
 
-            StringCollection recentFilesList = Properties.Settings.Default.RecentFilesList;
+            StringCollection recentFilesList = Settings.Default.RecentFilesList;
 
             if (recentFilesList != null)
             {
@@ -75,7 +74,7 @@ namespace GoodAI.BrainSimulator.Forms
 
         private static void UpgradeUserSettings()
         {
-            Settings settings = Properties.Settings.Default;
+            Settings settings = Settings.Default;
 
             if (!settings.ShouldUpgradeSettings)
                 return;
@@ -102,9 +101,9 @@ namespace GoodAI.BrainSimulator.Forms
                 {
                     OpenProject(MyConfiguration.OpenOnStartupProjectName);
                 }
-                else if (!string.IsNullOrEmpty(Properties.Settings.Default.LastProject))
+                else if (!string.IsNullOrEmpty(Settings.Default.LastProject))
                 {
-                    OpenProject(Properties.Settings.Default.LastProject);
+                    OpenProject(Settings.Default.LastProject);
                 }
                 else
                 {
@@ -135,6 +134,7 @@ namespace GoodAI.BrainSimulator.Forms
 
             stopToolButton.Enabled = SimulationHandler.CanStop;
             stopToolStripMenuItem.Enabled = SimulationHandler.CanStop;
+
 
             debugToolButton.Enabled = SimulationHandler.CanStartDebugging;
             debugToolStripMenuItem.Enabled = SimulationHandler.CanStartDebugging;
@@ -188,6 +188,7 @@ namespace GoodAI.BrainSimulator.Forms
             {
                 statusStrip.BackColor = STATUS_BAR_BLUE_BUILDING;
             }
+            RefreshUndoRedoButtons();
         }    
 
         private void openProjectToolStripMenuItem_Click(object sender, EventArgs e)
@@ -263,9 +264,9 @@ namespace GoodAI.BrainSimulator.Forms
 
         private void SaveProjectOrSaveAs()
         {
-            if (saveFileDialog.FileName != string.Empty)
+            if (Project.HasBeenNamed)
             {
-                SaveProject(saveFileDialog.FileName);
+                SaveProject();
             }
             else
             {
@@ -280,10 +281,43 @@ namespace GoodAI.BrainSimulator.Forms
 
         private void SaveProjectAs()
         {
-            if (saveFileDialog.ShowDialog(this) == DialogResult.OK)
+            if (saveFileDialog.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            string newName = saveFileDialog.FileName;
+
+            string oldProjectDataPath = MyMemoryBlockSerializer.GetTempStorage(Project);
+            string newProjectDataPath = MyMemoryBlockSerializer.GetTempStorage(MyProject.MakeNameFromPath(newName));
+
+            if (newProjectDataPath != oldProjectDataPath)
+                CopyDirectory(oldProjectDataPath, newProjectDataPath);
+            else
+                MyLog.WARNING.WriteLine("Projects with the same filename share the same temporal folder where the state is saved.");
+
+            Project.FileName = newName;  // Also sets the name;
+
+            SaveProject();
+            m_recentMenu.AddFile(newName);
+        }
+
+        private void CopyDirectory(string sourcePath, string destinationPath)
+        {
+            if (!Directory.Exists(sourcePath) || (sourcePath == destinationPath))
+                return;
+
+            try
             {
-                SaveProject(saveFileDialog.FileName);
-                m_recentMenu.AddFile(saveFileDialog.FileName);
+                // Create all of the directories.
+                foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
+                    Directory.CreateDirectory(dirPath.Replace(sourcePath, destinationPath));
+
+                // Copy all the files & replace any files with the same name.
+                foreach (string sourceFilePath in Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories))
+                    File.Copy(sourceFilePath, sourceFilePath.Replace(sourcePath, destinationPath), true);
+            }
+            catch (Exception ex)
+            {
+                MyLog.ERROR.WriteLine("Failed to copy directory: " + ex.Message);
             }
         }
 
@@ -300,31 +334,28 @@ namespace GoodAI.BrainSimulator.Forms
             CreateNetworkView();
             OpenGraphLayout(Project.Network);
 
-            Properties.Settings.Default.LastProject = String.Empty;
-            saveFileDialog.FileName = String.Empty;
+            AppSettings.SaveSettings(settings => settings.LastProject = String.Empty);
         }
 
-        private void runToolButton_Click(object sender, EventArgs e)
+        public void runToolButton_Click(object sender, EventArgs e)
         {
             ShowHideAllObservers(forceShow: true);
-            ConsoleView.Activate();            
             StartSimulation();            
         }
 
         private void SetupDebugViews()
         {
             ShowHideAllObservers(forceShow: true);
-            ConsoleView.Activate();
         }
 
-        private void stopToolButton_Click(object sender, EventArgs e)
+        public void stopToolButton_Click(object sender, EventArgs e)
         {
             ShowHideAllObservers(forceShow: true);
             SimulationHandler.StopSimulation();
             SimulationHandler.Simulation.InDebugMode = false;
         }
 
-        private void pauseToolButton_Click(object sender, EventArgs e)
+        public void pauseToolButton_Click(object sender, EventArgs e)
         {
             ShowHideAllObservers(forceShow: true);
             SimulationHandler.PauseSimulation();
@@ -340,6 +371,8 @@ namespace GoodAI.BrainSimulator.Forms
 
                 if (Project.World == null || wc.NodeType != Project.World.GetType())
                 {
+                    var oldWorld = Project.World;
+
                     Project.CreateWorld(wc.NodeType);
                     Project.World.EnableDefaultTasks();
                     NodePropertyView.Target = null;
@@ -354,6 +387,11 @@ namespace GoodAI.BrainSimulator.Forms
                         graphView.Desktop.Invalidate();                        
                         graphView.worldButton_Click(sender, e);                     
                     }
+
+                    ProjectStateChanged("World selected");
+
+                    if (WorldChanged != null)
+                        WorldChanged(this, new WorldChangedEventArgs(oldWorld, Project.World));
                 }
             }
         }
@@ -386,7 +424,7 @@ namespace GoodAI.BrainSimulator.Forms
                 }
             }           
 
-            if ((String.IsNullOrEmpty(saveFileDialog.FileName)) || !IsProjectSaved(saveFileDialog.FileName))
+            if (!Project.HasBeenNamed || !IsProjectSaved())
             {
                 var dialogResult = MessageBox.Show("Save project changes?",
                     "Save Changes", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
@@ -408,10 +446,11 @@ namespace GoodAI.BrainSimulator.Forms
         {
             StoreViewsLayout(UserLayoutFileName);
 
-            Properties.Settings.Default.RecentFilesList = new StringCollection();
-            Properties.Settings.Default.RecentFilesList.AddRange(m_recentMenu.GetFiles());
-
-            Properties.Settings.Default.Save();
+            AppSettings.SaveSettings(settings =>
+            {
+                settings.RecentFilesList = new StringCollection();
+                settings.RecentFilesList.AddRange(m_recentMenu.GetFiles());
+            });
         }
 
         private void reloadButton_Click(object sender, EventArgs e)
@@ -424,7 +463,7 @@ namespace GoodAI.BrainSimulator.Forms
         {
             if (openNodeFileDialog.ShowDialog(this) == DialogResult.OK)
             {
-                Properties.Settings.Default.UserNodesFile = openNodeFileDialog.FileName;
+                AppSettings.SaveSettings(settings => settings.UserNodesFile = openNodeFileDialog.FileName);
 
                 if (MessageBox.Show("Restart is needed for this action to take effect.\nDo you want to quit application?", "Restart needed",
                     MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == DialogResult.OK)
@@ -482,8 +521,7 @@ namespace GoodAI.BrainSimulator.Forms
         {
             if (openMemFileDialog.ShowDialog(this) == DialogResult.OK)
             {
-                string dataFolder = Path.GetDirectoryName(openMemFileDialog.FileName) + "\\" +
-                        Path.GetFileNameWithoutExtension(openMemFileDialog.FileName) + ".statedata";
+                string dataFolder = MyProject.MakeDataFolderFromFileName(openMemFileDialog.FileName);
 
                 SimulationHandler.Simulation.GlobalDataFolder = dataFolder;
                 setGlobalDataFolderToolStripMenuItem.Text = "Change global data folder: " + SimulationHandler.Simulation.GlobalDataFolder;
@@ -504,21 +542,14 @@ namespace GoodAI.BrainSimulator.Forms
 
         private void loadOnStartMenuItem_Click(object sender, EventArgs e)
         {
-            if (!loadMemBlocksButton.Checked)
-            {
-                SimulationHandler.Simulation.LoadAllNodesData = true;
-                loadMemBlocksButton.Checked = true;
-            }
-            else
-            {
-                SimulationHandler.Simulation.LoadAllNodesData = false;
-                loadMemBlocksButton.Checked = false;                
-            }
-        }
+            loadMemBlocksButton.Checked = !loadMemBlocksButton.Checked;
+
+            Project.LoadAllNodesData = loadMemBlocksButton.Checked;
+       }
 
         private void saveOnStopMenuItem_CheckChanged(object sender, EventArgs e)
         {
-            SimulationHandler.Simulation.SaveAllNodesData = saveMemBlocksButton.Checked;
+            Project.SaveAllNodesData = saveMemBlocksButton.Checked;
         }
 
         private void exportStateButton_Click(object sender, EventArgs e)
@@ -527,8 +558,7 @@ namespace GoodAI.BrainSimulator.Forms
             {
                 try
                 {
-                    string dataFolder = Path.GetDirectoryName(saveMemFileDialog.FileName) + "\\" +
-                        Path.GetFileNameWithoutExtension(saveMemFileDialog.FileName) + ".statedata";
+                    string dataFolder = MyProject.MakeDataFolderFromFileName(saveMemFileDialog.FileName);
                     
                     MyMemoryBlockSerializer.ExportTempStorage(Project, dataFolder);
 
@@ -567,11 +597,16 @@ namespace GoodAI.BrainSimulator.Forms
 
         private void updateMemoryBlocksToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            SimulationHandler.UpdateMemoryModel();
-
-            foreach (GraphLayoutForm graphView in GraphViews.Values)
+            try
             {
-                graphView.Desktop.Invalidate();
+                SimulationHandler.UpdateMemoryModel();
+            }
+            finally
+            {
+                foreach (GraphLayoutForm graphView in GraphViews.Values)
+                {
+                    graphView.Desktop.Invalidate();
+                }
             }
         }
 
@@ -579,7 +614,7 @@ namespace GoodAI.BrainSimulator.Forms
         {
             try
             {
-                MyDocProvider.Navigate(Properties.Settings.Default.HelpUrl);
+                MyDocProvider.Navigate(Settings.Default.HelpUrl);
             }
             catch (Exception exc)
             {
@@ -591,7 +626,8 @@ namespace GoodAI.BrainSimulator.Forms
         {
             autosaveTextBox.Enabled = autosaveButton.Checked;
             SimulationHandler.AutosaveEnabled = autosaveButton.Checked;
-            Properties.Settings.Default.AutosaveEnabled = autosaveButton.Checked;
+
+            AppSettings.SaveSettings(settings => settings.AutosaveEnabled = autosaveButton.Checked);
         }        
 
         private void autosaveTextBox_Validating(object sender, CancelEventArgs e)
@@ -601,7 +637,8 @@ namespace GoodAI.BrainSimulator.Forms
             if (int.TryParse(autosaveTextBox.Text, out result))
             {
                 SimulationHandler.AutosaveInterval = result;
-                Properties.Settings.Default.AutosaveInterval = result;
+
+                AppSettings.SaveSettings(settings => settings.AutosaveInterval = result);
             }
             else
             {
@@ -609,7 +646,7 @@ namespace GoodAI.BrainSimulator.Forms
             }
         }
 
-        private void debugToolButton_Click(object sender, EventArgs e)
+        public void debugToolButton_Click(object sender, EventArgs e)
         {            
             SimulationHandler.Simulation.InDebugMode = true;
             StartSimulationStep();
@@ -617,7 +654,7 @@ namespace GoodAI.BrainSimulator.Forms
             OpenFloatingOrActivate(DebugView);        
         }
 
-        private void stepOverToolButton_Click(object sender, EventArgs e)
+        public void stepOverToolButton_Click(object sender, EventArgs e)
         {
             SetupDebugViews();
 
@@ -740,6 +777,28 @@ namespace GoodAI.BrainSimulator.Forms
         private void profileToolButton_CheckedChanged(object sender, EventArgs e)
         {
             MyExecutionBlock.IsProfiling = profileToolButton.Checked;
+        }
+
+        // Using MouseUp instead of Click because the .Enabled property is updated as part of the action
+        // which would sometimes lead to double-clicks.
+        private void undoButton_MouseUp(object sender, MouseEventArgs e)
+        {
+            Undo();
+        }
+
+        private void redoButton_MouseUp(object sender, MouseEventArgs e)
+        {
+            Redo();
+        }
+
+        private void undoToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Undo();
+        }
+
+        private void redoToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Redo();
         }
     }
 }

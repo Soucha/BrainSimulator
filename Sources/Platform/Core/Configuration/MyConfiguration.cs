@@ -21,12 +21,12 @@ namespace GoodAI.Core.Configuration
         public static Dictionary<string, MyCategoryConfig> KnownCategories { get; private set; }
 
         public static List<MyModuleConfig> Modules { get; private set; }
-        public static Dictionary<Assembly, MyModuleConfig> AssemblyLookup { get; private set; }
+        public static Dictionary<string, MyModuleConfig> AssemblyLookup { get; private set; }
 
         public static List<string> ModulesSearchPath { get; private set; }
         public static string OpenOnStartupProjectName { get; private set; }
 
-        public static string GlobalPTXFolder { get; private set; }        
+        public static string GlobalPTXFolder { get; set; }
 
         static MyConfiguration()
         {
@@ -37,16 +37,16 @@ namespace GoodAI.Core.Configuration
             Modules = new List<MyModuleConfig>();
 
             ModulesSearchPath = new List<string>();
-            AssemblyLookup = new Dictionary<Assembly, MyModuleConfig>();
+            AssemblyLookup = new Dictionary<string, MyModuleConfig>();
         }
 
         public static void SetupModuleSearchPath()
         {
-            //SearchPath.Add(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)); //add bs folder name
+            var modulesPath = Path.Combine(MyResources.GetEntryAssemblyPath(), MODULES_PATH);
 
-            if (Directory.Exists(MyResources.GetEntryAssemblyPath() + "\\" + MODULES_PATH))
+            if (Directory.Exists(modulesPath))
             {
-                foreach (string modulePath in Directory.GetDirectories(MyResources.GetEntryAssemblyPath() + "\\" + MODULES_PATH))
+                foreach (string modulePath in Directory.GetDirectories(modulesPath))
                 {
                     ModulesSearchPath.Add(modulePath);
                 }
@@ -97,6 +97,13 @@ namespace GoodAI.Core.Configuration
                 if (!fileInfo.Exists)
                     MyLog.WARNING.WriteLine("Module assembly not found: " + fileInfo);
 
+                foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+                    if (assembly.ManifestModule.Name == fileInfo.Name)
+                    {
+                        fileInfo = new FileInfo(assembly.ManifestModule.FullyQualifiedName);
+                        break;
+                    }
+
                 moduleList.Add(fileInfo);
             }
 
@@ -109,6 +116,9 @@ namespace GoodAI.Core.Configuration
             AddModuleFromAssembly(
                 new FileInfo(Path.Combine(MyResources.GetEntryAssemblyPath(), CORE_MODULE_NAME)), basicNode: true);
 
+            if (ModulesSearchPath.Count == 0)
+                throw new InvalidOperationException("ModulesSearchPath must not be empty.");
+
             MyLog.INFO.WriteLine("Loading custom modules...");
             ListModules().ForEach(moduleFileInfo => AddModuleFromAssembly(moduleFileInfo));
         }
@@ -116,11 +126,11 @@ namespace GoodAI.Core.Configuration
         private static void AddModuleFromAssembly(FileInfo file, bool basicNode = false)
         {
             try
-            {              
-                MyModuleConfig moduleConfig = MyModuleConfig.LoadModuleConfig(file);                
+            {
+                MyModuleConfig moduleConfig = MyModuleConfig.LoadModuleConfig(file);
 
                 Modules.Add(moduleConfig);
-                AssemblyLookup[moduleConfig.Assembly] = moduleConfig;
+                AssemblyLookup[moduleConfig.Assembly.FullName] = moduleConfig;
 
                 if (moduleConfig.NodeConfigList != null)
                 {
@@ -156,17 +166,22 @@ namespace GoodAI.Core.Configuration
                     }
                 }
 
-                MyLog.INFO.WriteLine("Module loaded: " + file.Name 
-                    + (moduleConfig.Conversion != null ? " (version=" + moduleConfig.GetXmlVersion() + ")" : " (no versioning)"));                
+                MyLog.INFO.WriteLine("Module loaded: " + file.Name
+                                     +
+                                     (moduleConfig.Conversion != null
+                                         ? " (version=" + moduleConfig.GetXmlVersion() + ")"
+                                         : " (no versioning)"));
             }
             catch (Exception e)
             {
-                MyLog.ERROR.WriteLine("Module loading failed: " + e.Message);
-
                 if (basicNode)
                 {
                     throw new MyModuleLoadingException("Core module loading failed (" + e.Message + ")", e);
                 }
+
+                // We don't report the nodes.xml missing - the dll could still contain UI extensions.
+                if (!(e is FileNotFoundException))
+                    MyLog.ERROR.WriteLine("Module loading failed: " + e.Message);
             }
         }
     }

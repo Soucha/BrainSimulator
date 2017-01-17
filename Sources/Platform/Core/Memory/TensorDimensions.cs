@@ -1,272 +1,133 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using YAXLib;
+using GoodAI.Core.Utils;
 
 namespace GoodAI.Core.Memory
 {
-    public class InvalidDimensionsException : FormatException
+    public class TensorDimensions : TensorDimensionsBase
     {
-        public InvalidDimensionsException(string message) : base(message) { }
-    }
+        #region Static 
 
-    [YAXSerializableType(FieldsToSerialize = YAXSerializationFields.AttributedFieldsOnly)]
-    public class TensorDimensions : MemBlockAttribute
-    {
-        [YAXSerializableField, YAXSerializeAs("CustomDimensions")]
-        [YAXCollection(YAXCollectionSerializationTypes.Recursive, EachElementName = "Dim")]
-        private List<int> m_customDimensions = new List<int>();
+        private static TensorDimensions m_emptyInstance;
 
-        private int m_computedDimension = -1;
+        public static TensorDimensions Empty
+        {
+            get { return m_emptyInstance ?? (m_emptyInstance = new TensorDimensions()); }
+        }
 
-        private const string ComputedDimLiteral = "*";
+        #endregion
 
         public TensorDimensions()
+        {}
+
+        public TensorDimensions(params int[] dimensions) : base(ProcessDimensions(dimensions))
+        {}
+
+        public TensorDimensions(IEnumerable<int> dimensions) : base(ProcessDimensions(dimensions))
+        {}
+
+        public override bool Equals(object obj)
         {
-            IsCustom = false;
-            CanBeComputed = false;
+            if (!(obj is TensorDimensions))
+                return false;
+
+            return base.Equals((TensorDimensions)obj);
         }
 
-        public TensorDimensions(params int[] dimensions)
+        public bool Equals(TensorDimensions dimensionsHint)
         {
-            Set(dimensions);
-
-            IsCustom = false;  // do not save dimensions constructed in code
+            return base.Equals(dimensionsHint);
         }
 
-        private const int MaxDimensions = 100; // ought to be enough for everybody
-
-        public int Size
+        public override int GetHashCode()
         {
-            get { return m_size; }
-            set
+            return base.GetHashCode();
+        }
+
+        public string Print(bool printTotalSize = false)
+        {
+            if (m_dims == null || m_dims.Count == 0)
+                return "0";
+
+            return string.Join("×", m_dims.Select(item => item.ToString()))
+                + (printTotalSize ? string.Format(" [{0}]", ElementCount) : "");
+        }
+
+        public TensorDimensions Transpose()
+        {
+            if (IsEmpty)
+                return TensorDimensions.Empty;
+
+            if (Rank == 1)
+                return new TensorDimensions(1, m_dims[0]);  // Row vector -> column vector.
+
+            if (Rank < 2)
+                throw new InvalidOperationException(string.Format("Invalid Rank value {0}", Rank));
+
+            int[] transposed = new int[Rank];
+
+            transposed[0] = m_dims[1];
+            transposed[1] = m_dims[0];
+
+            for (int i = 2; i < Rank; i++)
+                transposed[i] = m_dims[i];
+
+            return new TensorDimensions(transposed);
+        }
+
+        public TensorDimensions AddDimensions(params int[] dimensions)
+        {
+            int[] grown = new int[Rank+dimensions.Length];
+
+            for (int i = 0; i < m_dims.Count; i++) // m_dims.Count can be less than Rank, especially at BrSim startup
+                grown[i] = m_dims[i];
+
+            for (int i = Rank; i < Rank + dimensions.Length; i++)
+                grown[i] = dimensions[i-Rank];
+
+            return new TensorDimensions(grown);
+        }
+
+        public static TensorDimensions GetBackwardCompatibleDims(int count, int columnHint)
+        {
+            if (count == 0)
+                return Empty;
+
+            if (columnHint == 0)
+                return new TensorDimensions(count);
+
+            // ReSharper disable once InvertIf
+            if (count/columnHint*columnHint != count)
             {
-                m_size = value;
-                UpdateComputedDimension();
-            }
-        }
-        private int m_size;
+                MyLog.WARNING.WriteLine("Count {0} is not divisible by ColumnHint {1}, the hint will be ignored.",
+                    count, columnHint);
 
-        public int this[int index]
-        {
-            get
-            {
-                if (m_customDimensions.Count == 0)
-                    return m_size;
-
-                if (index >= m_customDimensions.Count)
-                    throw new IndexOutOfRangeException(string.Format(
-                        "Index {0} is greater than max index {1}.", index, m_customDimensions.Count - 1));
-
-                return (m_customDimensions[index] != -1) ? m_customDimensions[index] : m_computedDimension;
-            }
-        }
-        
-        public int Count
-        {
-            get { return Math.Max(m_customDimensions.Count, 1); }  // we always have at least one dimension
-        }
-
-        public bool CanBeComputed { get; private set; }
-
-        public string LastSetWarning { get; private set; }
-
-        internal override void ApplyAttribute(MyAbstractMemoryBlock memoryBlock)
-        {
-            memoryBlock.Dims = this;
-        }
-
-        public override string ToString()
-        {
-            return PrintSource();
-        }
-
-        public string PrintSource()
-        {
-            return string.Join(", ", m_customDimensions.Select(item =>
-                (item == -1) ? ComputedDimLiteral : item.ToString()
-                ));
-        }
-
-        public string Print(bool printTotalSize = false, bool indicateComputedDim = false, bool hideTrailingOnes = false)
-        {
-            if (m_customDimensions.Count == 0)
-                return m_size.ToString();
-
-            var filteredDims = new List<int>(m_customDimensions);
-
-            if (hideTrailingOnes)
-            {
-                while ((filteredDims.Count > 1) && (filteredDims[filteredDims.Count - 1] == 1))
-                {
-                    filteredDims.RemoveAt(filteredDims.Count - 1);
-                }
-            }
-
-            string result = string.Join("×", filteredDims.Select(item =>
-                (item == -1)
-                ? string.Format((indicateComputedDim ? "({0})" : "{0}"), PrintComputedDim())
-                : item.ToString()
-            ));
-
-            // indicate that product of dimensions does not match memory block size (unless already indicated by "?")
-            bool sizeMismatch = (m_computedDimension == -1) && !filteredDims.Contains(-1);
-
-            return result + (printTotalSize
-                ? string.Format(" [{0}{1}]", Size, (sizeMismatch ? "!" : ""))
-                : (sizeMismatch ? " (!)" : ""));
-        }
-
-        private string PrintComputedDim()
-        {
-            return (m_computedDimension == -1) ? "?" : m_computedDimension.ToString();
-        }
-
-        public void Set(IEnumerable<int> customDimensions, bool autoAddComputedDim = false)
-        {
-            InnerSet(customDimensions, autoAddComputedDim);
-            
-            IsCustom = (m_customDimensions.Count > 0);  // No need to save "empty" value.
-        }
-        
-        /// <summary>
-        /// Sets new value but treats it as default (that is not saved to the project). Use for backward compatibility.
-        /// </summary>
-        public void SetDefault(IEnumerable<int> dimensions, bool autoAddComputedDim = false)
-        {
-            if (IsCustom)
-                return;
-
-            InnerSet(dimensions, autoAddComputedDim);
-
-            IsCustom = false;  // treat new value as default
-        }
-
-        public void Parse(string text)
-        {
-            if (text.Trim() == string.Empty)
-            {
-                Set(new List<int>());
-                return;
+                return new TensorDimensions(count);
             }
 
-            string[] textItems = text.Split(',', ';');
-
-            IEnumerable<int> dimensions = textItems.Select(item =>
-            {
-                int result;
-
-                if ((item.Trim() == ComputedDimLiteral) || (item.Trim() == "_"))
-                {
-                    result = -1;  // computed dimension
-                }
-                else if (!int.TryParse(item.Trim(), out result))
-                {
-                    throw new InvalidDimensionsException(string.Format("Dimension '{0}' is not an integer.", item));
-                }
-
-                return result;
-            });
-
-            Set(dimensions, autoAddComputedDim: true);
+            return new TensorDimensions(columnHint, count/columnHint);
         }
 
-        private void InnerSet(IEnumerable<int> dimensions, bool autoAddComputedDim)
+        private static IImmutableList<int> ProcessDimensions(IEnumerable<int> dimensions)
         {
-            string warning;
-
-            m_customDimensions = ProcessDimensions(dimensions, m_size, autoAddComputedDim, out warning);
-
-            LastSetWarning = warning;
-
-            UpdateComputedDimension();
-        }
-
-        private static List<int> ProcessDimensions(IEnumerable<int> dimensions, int size, bool autoAddComputedDim,
-            out string warning)
-        {
-            warning = "";
-
-            var newDimensions = new List<int>();
-
-            bool foundComputedDimension = false;
+            ImmutableList<int>.Builder newDimensionsBuilder = ImmutableList.CreateBuilder<int>();
 
             foreach (int item in dimensions)
             {
-                if ((item < -1) || (item == 0))
+                if (item < 0)
                     throw new InvalidDimensionsException(string.Format("Number {0} is not a valid dimension.", item));
 
-                if (item == -1)
-                {
-                    if (foundComputedDimension)
-                        throw new InvalidDimensionsException(string.Format(
-                            "Multiple computed dimensions not allowed (item #{0}).", newDimensions.Count + 1));
+                newDimensionsBuilder.Add(item);
 
-                    foundComputedDimension = true;
-                }
-
-                newDimensions.Add(item);
-
-                if (newDimensions.Count > MaxDimensions)
+                if (newDimensionsBuilder.Count > MaxDimensions)
                     throw new InvalidDimensionsException(string.Format("Maximum number of dimensions is {0}.", MaxDimensions));
             }
 
-            // got only the computed dimension, it is equivalent to empty setup
-            if (foundComputedDimension && (newDimensions.Count == 1))
-            {
-                if (string.IsNullOrEmpty(warning))
-                    warning = "Only computed dim. changed to empty dimensions.";
-
-                return new List<int>();
-            }
-
-            // UX: when no computed dimension was given, let it be the first one
-            if (autoAddComputedDim && (newDimensions.Count > 0) && !foundComputedDimension
-                && (ComputeDimension(size, newDimensions) != 1))
-            {
-                newDimensions.Insert(0, -1);
-
-                if (warning == "")
-                    warning = "Added leading computed dimension.";
-            }
-
-            return newDimensions;
-        }
-
-        private void UpdateComputedDimension()
-        {
-            m_computedDimension = ComputeDimension(m_size, m_customDimensions);
-
-            CanBeComputed = (m_computedDimension != -1);
-        }
-
-        private static int ComputeDimension(int size, List<int> dimensionsList)
-        {
-            if (size == 0)
-                return -1;  // don't return dimension size 0
-
-            if (dimensionsList.Count == 0)
-                return size;
-
-            int product = 1;
-            dimensionsList.ForEach(item =>
-            {
-                if (item != -1)
-                    product *= item;
-            });
-
-            if (product < 1)
-                return -1;
-
-            int computedDimension = size / product;
-
-            if ((computedDimension * product) != size)  // unable to compute integer division
-                return -1;
-
-            return computedDimension;
+            return newDimensionsBuilder.ToImmutable();
         }
     }
 }

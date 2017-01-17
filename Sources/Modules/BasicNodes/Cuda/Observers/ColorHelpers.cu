@@ -100,7 +100,6 @@ __device__ float hsva_to_float(float h, float s, float v) {
 	return  RGB2GRAY_AVERAGE(r,g,b);			
 }
 
-
 __device__ unsigned int rgba_to_uint_rgba(float r, float g, float b, float a) {
 
 	unsigned char red = (unsigned char) __float2uint_rn(255.0f * r);
@@ -111,11 +110,16 @@ __device__ unsigned int rgba_to_uint_rgba(float r, float g, float b, float a) {
 	return  (alpha << 24)  | (red << 16) | (green << 8) | blue;			
 }
 
+__device__ unsigned int grayscale_to_uint_rgba(float value)
+{
+	return rgba_to_uint_rgba(value, value, value, 1.0f);
+}
+
 __device__ unsigned int float_to_uint_rgba(float input, int method, int scale, float minValue, float maxValue)
 {				
 	if (method == 5) // RAW data
 	{
-		return (unsigned int)input;			
+		return *((unsigned int *)&input);
 	}
 	else
 	{

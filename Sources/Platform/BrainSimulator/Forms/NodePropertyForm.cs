@@ -23,6 +23,8 @@ namespace GoodAI.BrainSimulator.Forms
         {
             if (PropertyChanged != null)
                 PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+
+            m_mainForm.ProjectStateChanged(string.Format("Node property value changed: {0}", propertyName));
         }
 
         private readonly MainForm m_mainForm;
@@ -62,50 +64,27 @@ namespace GoodAI.BrainSimulator.Forms
         {
             OnPropertyChanged(e.ChangedItem.PropertyDescriptor.Name);
 
-            MyNodeView nodeView = null;
+            var node = propertyGrid.SelectedObject as MyNode;
+            if (node != null)
+            {
+                var nodeGroup = node as MyNodeGroup;
+                if (nodeGroup != null)
+                    m_mainForm.ReloadGraphLayout(nodeGroup);
 
-            foreach(GraphLayoutForm graphView in m_mainForm.GraphViews.Values) {
+                node.Updated();
+            }
 
-                if (graphView.Desktop.FocusElement is MyNodeView 
-                    && (graphView.Desktop.FocusElement as MyNodeView).Node == propertyGrid.SelectedObject)
-                {
-                    nodeView = graphView.Desktop.FocusElement as MyNodeView;                    
-                    nodeView.UpdateView();               
-                }
-
+            foreach (GraphLayoutForm graphView in m_mainForm.GraphViews.Values)
+            {
                 if (propertyGrid.SelectedObject is MyNodeGroup && graphView.Target == propertyGrid.SelectedObject)
-                {
                     graphView.Text = graphView.Target.Name;
-                }
-
-                graphView.Desktop.Invalidate();
             }
 
             foreach (TextEditForm textEditor in m_mainForm.TextEditors.Values)
             {
                 if (textEditor.Target == propertyGrid.SelectedObject)
-                {
                     textEditor.Text = textEditor.Target.Name;
-                }
             }
-
-            if (nodeView != null)
-            {
-                if (nodeView.BranchChangeNeeded)
-                {
-                    if (nodeView.OutputBranchChangeNeeded)
-                    {
-                        m_mainForm.CloseObservers(nodeView.Node);
-                    }
-
-                    if (nodeView.Node is MyNodeGroup)
-                    {
-                        m_mainForm.ReloadGraphLayout(nodeView.Node as MyNodeGroup);
-                    }
-
-                    (nodeView as MyVariableBranchView).UpdateBranches();
-                }
-            }            
 
             propertyGrid.Refresh();
 
@@ -186,14 +165,23 @@ namespace GoodAI.BrainSimulator.Forms
             if (observers != null && observers.Count > 0)
             {
                 foreach (MyObserverConfig oc in observers.Values)
-                {                        
-                    ToolStripMenuItem item = new ToolStripMenuItem(oc.ObserverType.Name.Substring(2));
+                {
+                    ToolStripMenuItem item = new ToolStripMenuItem(GetMenuItemName(oc));
                     item.Tag = oc.ObserverType;
                     item.Click += item_Click;
                     observerDropDownButton.DropDownItems.Add(item);
                 }
                 observerDropDownButton.Enabled = true;
             }            
+        }
+
+        private String GetMenuItemName(MyObserverConfig oc)
+        {
+            if (oc.ObserverType.Name.Substring(0, 2).Equals("My"))
+            {
+                return oc.ObserverType.Name.Substring(2);
+            }
+            return oc.ObserverType.Name;
         }
 
         void item_Click(object sender, EventArgs e)
@@ -269,7 +257,7 @@ namespace GoodAI.BrainSimulator.Forms
                 m_mainForm.DashboardPropertyToggle(Target, propertyDescriptor.Name, dashboardButton.Checked);
         }
 
-        public void RefreshGrid()
+        public void RefreshView()
         {
             propertyGrid.Refresh();
         }

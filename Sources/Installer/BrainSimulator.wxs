@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="33387B29-CA7F-4F32-90EB-48AABED64D3B" Name="Brain Simulator" Language="1033" Version="!(bind.FileVersion.BrainSimulatorEXE)" Manufacturer="GoodAI" UpgradeCode="9BA364BA-3FC7-4DA0-B920-3BEBC49E8E8A">
+  <Product Id="B2D6FC3E-6CA6-44A0-BBB2-459C3D933D2B" Name="Brain Simulator" Language="1033" Version="!(bind.FileVersion.BrainSimulatorEXE)" Manufacturer="GoodAI" UpgradeCode="9BA364BA-3FC7-4DA0-B920-3BEBC49E8E8A">
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Platform="x64" />
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
@@ -17,11 +17,11 @@
   
     <Icon Id="BrainSimulator.exe" SourceFile="$(var.BrainSimulator.TargetPath)" />
 
-    <WixVariable Id="CudaBinariesSourceDirectory" Value="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\bin\"/>
+    <WixVariable Id="CudaBinariesSourceDirectory" Value="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\"/>
     <WixVariable Id="ModulesSourceDirectory" Value="$(var.BrainSimulator.TargetDir)modules"/>
     <WixVariable Id="ExamplesSourceDirectory" Value="$(var.BrainSimulator.ProjectDir)..\..\..\..\BrainSimulatorSampleProjects"/>
 
-    <WixVariable Id="WixUILicenseRtf" Value="Resources\EULA.rtf" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.BrainSimulator.ProjectDir)\EULA.rtf" />
     <WixVariable Id="WixUIBannerBmp" Value="Resources\brainSim_installBanner_owl.bmp" />
     <WixVariable Id="WixUIDialogBmp" Value="Resources\brainSim_installBanner_splash.bmp" />
 
@@ -113,6 +113,14 @@
         <File Id='AgaControlsDLL' Name='Aga.Controls.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\Aga.Controls.dll' KeyPath='yes' />
       </Component>
 
+      <Component Id='BEPUphysicsLib' Guid='*'>
+        <File Id='BEPUphysicsDLL' Name='BEPUphysics.dll' DiskId='1' Source='$(var.BasicNodes.TargetDir)\BEPUphysics.dll' KeyPath='yes' />
+      </Component>
+
+      <Component Id='BEPUutilitiesLib' Guid='*'>
+        <File Id='BEPUutilitiesDLL' Name='BEPUutilities.dll' DiskId='1' Source='$(var.BasicNodes.TargetDir)\BEPUutilities.dll' KeyPath='yes' />
+      </Component>
+
       <Component Id='ManagedCudaBlasLib' Guid='*'>
         <File Id='ManagedCudaBlasDLL' Name='CudaBlas.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\CudaBlas.dll' KeyPath='yes' />
       </Component>
@@ -125,24 +133,8 @@
         <File Id='ManagedCudaRandDLL' Name='CudaRand.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\CudaRand.dll' KeyPath='yes' />
       </Component>
 
-      <Component Id='ManagedCudaSolveLib' Guid='*'>
-        <File Id='ManagedCudaSolveDLL' Name='CudaSolve.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\CudaSolve.dll' KeyPath='yes' />
-      </Component>
-
-      <Component Id='ManagedCudaSparseLib' Guid='*'>
-        <File Id='ManagedCudaSparseDLL' Name='CudaSparse.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\CudaSparse.dll' KeyPath='yes' />
-      </Component>
-
       <Component Id='ManagedCudaLib' Guid='*'>
         <File Id='ManagedCudaDLL' Name='ManagedCuda.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\ManagedCuda.dll' KeyPath='yes' />
-      </Component>
-
-      <Component Id='ManagedCudaNPPLib' Guid='*'>
-        <File Id='ManagedCudaNPPDLL' Name='NPP.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\NPP.dll' KeyPath='yes' />
-      </Component>
-
-      <Component Id='ManagedCudaNVRTCLib' Guid='*'>
-        <File Id='ManagedCudaNVRTCDLL' Name='NVRTC.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\NVRTC.dll' KeyPath='yes' />
       </Component>
 
       <Component Id='OpenTKLib' Guid='*'>
@@ -157,8 +149,16 @@
         <File Id='ScintillaNETDLL' Name='ScintillaNET.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\ScintillaNET.dll' KeyPath='yes' />
       </Component>
 
+      <Component Id='SimpleInjectorLib' Guid='*'>
+        <File Id='SimpleInjectorDLL' Name='SimpleInjector.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\SimpleInjector.dll' KeyPath='yes' />
+      </Component>
+
       <Component Id='GraphLib' Guid='*'>
         <File Id='GraphDLL' Name='Graph.dll' DiskId='1' Source='$(var.Graph.TargetPath)' KeyPath='yes' />
+      </Component>
+
+      <Component Id='TypeMapLib' Guid='*'>
+        <File Id='TypeMapDLL' Name='TypeMap.dll' DiskId='1' Source='$(var.TypeMap.TargetPath)' KeyPath='yes' />
       </Component>
 
       <Component Id='YAXLib' Guid='*'>
@@ -170,7 +170,11 @@
       </Component>
 
       <Component Id='CoreLib' Guid='*'>
-        <File Id='CoreDLL' Name='GoodAI.Platform.Core.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)GoodAI.Platform.Core.dll' KeyPath='yes' />
+        <File Id='CoreDLL' Name='GoodAI.Platform.Core.dll' DiskId='1' Source='$(var.BrainSimulator.TargetDir)\GoodAI.Platform.Core.dll' KeyPath='yes' />
+      </Component>
+
+      <Component Id='SystemCollectionsImmutableLib' Guid='*'>
+        <File Id='SystemCollectionsImmutableDLL' Name='System.Collections.Immutable.dll' DiskId='1' Source='$(var.Core.TargetDir)' KeyPath='yes' />
       </Component>
 
       <Component Id='EULA' Guid='*'>
@@ -206,16 +210,16 @@
     </ComponentGroup>
     <ComponentGroup Id="CudaBinaries" Directory="INSTALLFOLDER">
       <Component Id='CudaRuntimeLib' Guid='*'>
-        <File Id='cudartDLL' Name='cudart64_75.dll' DiskId='1' Source='!(wix.CudaBinariesSourceDirectory)\cudart64_75.dll' KeyPath='yes' />
+        <File Id='cudartDLL' Name='cudart64_80.dll' DiskId='1' Source='!(wix.CudaBinariesSourceDirectory)\cudart64_80.dll' KeyPath='yes' />
       </Component>
       <Component Id='CudaBlasLib' Guid='*'>
-        <File Id='cublasDLL' Name='cublas64_75.dll' DiskId='1' Source='!(wix.CudaBinariesSourceDirectory)\cublas64_75.dll' KeyPath='yes' />
+        <File Id='cublasDLL' Name='cublas64_80.dll' DiskId='1' Source='!(wix.CudaBinariesSourceDirectory)\cublas64_80.dll' KeyPath='yes' />
       </Component>
       <Component Id='CudaFFTLib' Guid='*'>
-        <File Id='cufftDLL' Name='cufft64_75.dll' DiskId='1' Source='!(wix.CudaBinariesSourceDirectory)\cufft64_75.dll' KeyPath='yes' />
+        <File Id='cufftDLL' Name='cufft64_80.dll' DiskId='1' Source='!(wix.CudaBinariesSourceDirectory)\cufft64_80.dll' KeyPath='yes' />
       </Component>
       <Component Id='CudaRandLib' Guid='*'>
-        <File Id='curandDLL' Name='curand64_75.dll' DiskId='1' Source='!(wix.CudaBinariesSourceDirectory)\curand64_75.dll' KeyPath='yes' />
+        <File Id='curandDLL' Name='curand64_80.dll' DiskId='1' Source='!(wix.CudaBinariesSourceDirectory)\curand64_80.dll' KeyPath='yes' />
       </Component>
     </ComponentGroup>
     <ComponentGroup Id="ThirdLicenses" Directory="LicensesDirectory">
@@ -240,11 +244,23 @@
       <Component Id="cmp46099F220B279BF2FB51E202B3B30EA8" Guid="*">
           <File Id="filA112A1500BE984D6D32AB58340C0C2D0" KeyPath="yes" Source="$(var.BrainSimulator.TargetDir)\Licenses\OpenTK.txt" />
       </Component>
+      <Component Id="SimpleInjectorLicense" Guid="*">
+          <File Id="SimpleInjectorTXT" KeyPath="yes" Source="$(var.BrainSimulator.TargetDir)\Licenses\Simple Injector.txt" />
+      </Component>
       <Component Id="cmp0B85F121DD27EF768B0EFDFF6C3202AE" Guid="*">
           <File Id="fil2DFE8E0D7066109142B131FDB52BD42C" KeyPath="yes" Source="$(var.BrainSimulator.TargetDir)\Licenses\WinFormsUI.txt" />
       </Component>
+      <Component Id="WixLicense" Guid="*">
+          <File Id="WixLicenseTXT" KeyPath="yes" Source="$(var.BrainSimulator.TargetDir)\Licenses\WiX.txt" />
+      </Component>
       <Component Id="cmpA28E7462B57EC30AE7CAAE03677D6CC0" Guid="*">
           <File Id="filFA8422246C7D4FC3C1E3BFF9A20D3F5D" KeyPath="yes" Source="$(var.BrainSimulator.TargetDir)\Licenses\YAXLib.txt" />
+      </Component>
+      <Component Id="PommaLabs.Thrower.txt" Guid="*">
+          <File Id="PommaLabsThrowerTXT" KeyPath="yes" Source="$(var.BrainSimulator.TargetDir)\Licenses\PommaLabs.Thrower.txt" />
+      </Component>
+      <Component Id="Troschuetz.Random.txt" Guid="*">
+          <File Id="TroschuetzRandomTXT" KeyPath="yes" Source="$(var.BrainSimulator.TargetDir)\Licenses\Troschuetz.Random.txt" />
       </Component>
     </ComponentGroup>
   </Fragment>

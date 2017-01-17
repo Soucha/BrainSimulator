@@ -128,6 +128,7 @@ namespace GoodAI.Core.Nodes
         #region Node inputs
 
         public MyConnection[] InputConnections { get; protected set; }        
+        public HashSet<MyConnection>[] OutputConnections { get; protected set; }        
 
         [MyBrowsable, Category("I/O"), ReadOnly(true)]
         public virtual int InputBranches
@@ -138,12 +139,17 @@ namespace GoodAI.Core.Nodes
                 int connToCopy = Math.Min(value, InputBranches);
                 MyConnection[] oldConns = InputConnections;
 
+                for (int i = connToCopy; i < InputBranches; i++)
+                {
+                    var connection = InputConnections[i];
+                    if (connection != null)
+                        connection.Disconnect();
+                }
+
                 InputConnections = new MyConnection[value];
 
                 if (oldConns != null)
-                {
                     Array.Copy(oldConns, InputConnections, connToCopy);
-                }
             }
         }
 
@@ -185,7 +191,28 @@ namespace GoodAI.Core.Nodes
         #region Node outputs
 
         [MyBrowsable, Category("I/O"), ReadOnly(true)]
-        public abstract int OutputBranches { get; set; }   
+        public virtual int OutputBranches
+        {
+            get { return OutputConnections == null ? 0 : OutputConnections.Length; }
+            set
+            {
+                int connToCopy = Math.Min(value, OutputBranches);
+                HashSet<MyConnection>[] oldConns = OutputConnections;
+
+                for (int i = connToCopy; i < OutputBranches; i++)
+                    foreach (MyConnection connection in OutputConnections[i].ToList())
+                        connection.Disconnect();
+
+                OutputConnections = new HashSet<MyConnection>[value];
+
+                if (oldConns != null)
+                    Array.Copy(oldConns, OutputConnections, connToCopy);
+
+                for (int i = connToCopy; i < OutputBranches; i++)
+                    if (OutputConnections[i] == null)
+                        OutputConnections[i] = new HashSet<MyConnection>();
+            }
+        }
 
         public abstract MyMemoryBlock<float> GetOutput(int index);
         public abstract MyMemoryBlock<T> GetOutput<T>(int index) where T : struct;
@@ -202,6 +229,8 @@ namespace GoodAI.Core.Nodes
         #region Memory Blocks
 
         public abstract void UpdateMemoryBlocks();
+
+        public virtual void ReallocateMemoryBlocks() { }
 
         private int[] m_outputBlockSizes = new int[0];
 
@@ -314,5 +343,26 @@ namespace GoodAI.Core.Nodes
 
             return true;
         }
+
+        public bool CheckForCycle(MyNode to)
+        {
+            var visited = new HashSet<MyNode> ();
+            return CheckForCycle(this, to, visited);
+        }
+
+        private static bool CheckForCycle(MyNode node, MyNode target, ISet<MyNode> visited)
+        {
+            visited.Add(node);
+
+            return node.InputConnections.Where(connection => connection != null && !connection.IsLowPriority)
+                .Select(connection => connection.From)
+                .Any(source =>
+                    source == target || (!visited.Contains(source) && CheckForCycle(source, target, visited)));
+        }
+
+        /// <summary>
+        /// This method is called after deserialization.
+        /// </summary>
+        public virtual void UpdateAfterDeserialization() { }
     }
 }

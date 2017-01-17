@@ -1,4 +1,8 @@
-﻿using GoodAI.Core.Configuration;using GoodAI.Core.Memory; using GoodAI.Core.Utils; using System; using System.Collections.Generic;
+﻿using GoodAI.Core.Configuration;
+using GoodAI.Core.Memory;
+using GoodAI.Core.Utils;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using YAXLib;
@@ -19,6 +23,10 @@ namespace GoodAI.Core.Nodes
             public int FromIndex { get; set; }
             [YAXSerializableField, YAXAttributeForClass]
             public int ToIndex { get; set; }
+            [YAXSerializableField, YAXAttributeForClass]
+            public bool IsLowPriority { get; set; }
+            [YAXSerializableField, YAXAttributeForClass]
+            public bool IsHidden { get; set; }
         };
 
         [YAXSerializableField, YAXSerializeAs("Connections")]
@@ -54,7 +62,9 @@ namespace GoodAI.Core.Nodes
                         From = inputConnection.From.Id,
                         To = inputConnection.To.Id,
                         FromIndex = inputConnection.FromIndex,
-                        ToIndex = inputConnection.ToIndex
+                        ToIndex = inputConnection.ToIndex,
+                        IsLowPriority = inputConnection.IsLowPriority,
+                        IsHidden = inputConnection.IsHidden
                     };
                     m_connections.Add(cp);
                 }
@@ -125,11 +135,15 @@ namespace GoodAI.Core.Nodes
 
             Iterate(true, findUnknownAction);
 
+            Iterate(true, node => node.UpdateAfterDeserialization());
+
             foreach (MyConnectionProxy cp in m_connections)
             {                
                 try
                 {
                     MyConnection connection = new MyConnection(nodes[cp.From], nodes[cp.To], cp.FromIndex, cp.ToIndex);
+                    connection.IsLowPriority = cp.IsLowPriority;
+                    connection.IsHidden = cp.IsHidden;
                     connection.Connect();
                 }
                 catch (Exception e)
@@ -226,7 +240,7 @@ namespace GoodAI.Core.Nodes
         {
             try
             {
-                string dataFolder = Path.GetDirectoryName(fileName) + "\\" + Path.GetFileNameWithoutExtension(fileName) + ".statedata";
+                string dataFolder = MyProject.MakeDataFolderFromFileName(fileName);
 
                 MyNetworkState networkState = new MyNetworkState()
                 {

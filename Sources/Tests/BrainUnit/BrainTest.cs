@@ -10,6 +10,7 @@ namespace GoodAI.Testing.BrainUnit
     {
         public string BrainFileName { get; protected set; }
         public int MaxStepCount { get; protected set; }
+        public bool ExpectedToFail { get; protected set; }
 
         public virtual int InspectInterval
         {
@@ -25,11 +26,12 @@ namespace GoodAI.Testing.BrainUnit
                 m_inspectInterval = value;
             }
         }
-
         private int m_inspectInterval = -1;
 
-        public BrainTest()
-        { }
+        public virtual string Name
+        {
+            get { return GetType().Name; }
+        }
 
         public virtual bool ShouldStop(IBrainScan b)
         {
