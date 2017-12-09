@@ -52,7 +52,9 @@ namespace MyCompany.Modules.FSMlearnerModule
             TTT,
             Quotient,
             GoodSplit,
-            OTree
+            H_learner,
+            SPY_learner,
+            S_learner
        }
 
         [YAXSerializableField(DefaultValue = 12)]

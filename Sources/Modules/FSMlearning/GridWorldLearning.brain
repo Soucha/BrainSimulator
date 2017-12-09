@@ -1,5 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Name="GridWorldLearning" xmlns:yaxlib="http://www.sinairv.com/yaxlib/">
+  <Observers>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <Id>38f5726b-5b8d-487c-bc1e-21dbbfee0f8f</Id>
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="747" Y="118" />
+        <Size Width="148" Height="213" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>12#ActionOutput</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>1</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>6</m_yLength>
+    </MyMatrixObserver>
+    <MemoryBlockObserver yaxlib:realtype="GoodAI.Core.Observers.MyMemoryBlockObserver">
+      <Method>RedGreenScale</Method>
+      <Scale>Linear</Scale>
+      <Elements>2</Elements>
+      <CustomDimensions></CustomDimensions>
+      <TimeStep>0</TimeStep>
+      <ShowCoordinates>False</ShowCoordinates>
+      <ObserveTensors>False</ObserveTensors>
+      <UseCustomDimensions>False</UseCustomDimensions>
+      <TilesInRow>1</TilesInRow>
+      <Id>98fd8ea6-c15d-4ce7-8b2f-2378f95c57dc</Id>
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="214" Y="365" />
+        <Size Width="300" Height="300" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>6#Visual</TargetIdentifier>
+      <m_boundPolicy>MANUAL</m_boundPolicy>
+      <m_minValue>0</m_minValue>
+      <m_maxValue>1</m_maxValue>
+    </MemoryBlockObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <Id>c58ae662-f66a-406e-958e-8629f8775eba</Id>
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="214" Y="93" />
+        <Size Width="185" Height="250" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>6#GlobalOutput</TargetIdentifier>
+      <m_nbDecimals>2</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>1</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>14</m_yLength>
+    </MyMatrixObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <Id>2ad3240c-fe48-4aa3-8d45-69f6a454deb0</Id>
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="590" Y="111" />
+        <Size Width="139" Height="66" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>12#WorldResponse</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>1</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>1</m_yLength>
+    </MyMatrixObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <Id>96a0884c-906f-4069-8a72-87b58318df75</Id>
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="431" Y="105" />
+        <Size Width="151" Height="69" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>14#QueryInputSymbol</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>1</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>1</m_yLength>
+    </MyMatrixObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <Id>2e31a4f2-e232-4d06-b492-4fabf5d90023</Id>
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="521" Y="359" />
+        <Size Width="512" Height="230" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>14#FSMtransition</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>6</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>1</m_yLength>
+    </MyMatrixObserver>
+    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
+      <Id>de0fbc51-9163-4ed2-a7d6-e10f6dafbc93</Id>
+      <ViewMode>Fit_2D</ViewMode>
+      <KeepRatio>True</KeepRatio>
+      <Window>
+        <Location X="1018" Y="280" />
+        <Size Width="179" Height="370" />
+        <CameraData />
+      </Window>
+      <AutosaveSnapshop>False</AutosaveSnapshop>
+      <BilinearFiltering>False</BilinearFiltering>
+      <TargetIdentifier>14#FSMoutput</TargetIdentifier>
+      <m_nbDecimals>0</m_nbDecimals>
+      <m_xStart>0</m_xStart>
+      <m_xLength>2</m_xLength>
+      <m_yStart>0</m_yStart>
+      <m_yLength>1</m_yLength>
+    </MyMatrixObserver>
+  </Observers>
   <Network Sequential="False" LoadOnStart="False" SaveOnStop="False" Id="0" Name="Network">
     <Children>
       <GridWorldMapperNode LoadOnStart="False" SaveOnStop="False" Id="12" Name="Node_12" yaxlib:realtype="MyCompany.Modules.GridWorldMapperModule.GridWorldMapperNode">
@@ -14,9 +149,10 @@
         </Tasks>
       </GridWorldMapperNode>
       <FSMlearnerNode LoadOnStart="False" SaveOnStop="False" Id="14" Name="Node_14" yaxlib:realtype="MyCompany.Modules.FSMlearnerModule.FSMlearnerNode">
-        <Learner>OTree</Learner>
+        <Learner>TTT</Learner>
         <AlphabetSize>5</AlphabetSize>
         <MaxExtraDepth>1</MaxExtraDepth>
+        <WriteDOT>True</WriteDOT>
         <DataFolder></DataFolder>
         <Location X="612" Y="307" />
         <Tasks>
@@ -60,19 +196,19 @@
     <DataFolder></DataFolder>
     <Location />
     <Connections>
-      <Connection From="12" To="11" FromIndex="0" ToIndex="0" />
-      <Connection From="14" To="12" FromIndex="0" ToIndex="0" />
-      <Connection From="7" To="12" FromIndex="0" ToIndex="1" />
-      <Connection From="12" To="14" FromIndex="1" ToIndex="0" />
+      <Connection From="12" To="11" FromIndex="0" ToIndex="0" IsLowPriority="False" IsHidden="False" />
+      <Connection From="14" To="12" FromIndex="0" ToIndex="0" IsLowPriority="False" IsHidden="False" />
+      <Connection From="7" To="12" FromIndex="0" ToIndex="1" IsLowPriority="False" IsHidden="False" />
+      <Connection From="12" To="14" FromIndex="1" ToIndex="0" IsLowPriority="True" IsHidden="False" />
     </Connections>
     <Tasks />
   </Network>
   <World LoadOnStart="False" SaveOnStop="False" Id="6" Name="World" yaxlib:realtype="GoodAI.Modules.GridWorld.MyGridWorld">
-    <USED_MAP>mapK</USED_MAP>
+    <USED_MAP>mapE</USED_MAP>
     <TEXTURE>textureA</TEXTURE>
     <RES>16</RES>
-    <VISIBLE_HEIGHT>80</VISIBLE_HEIGHT>
-    <VISIBLE_WIDTH>80</VISIBLE_WIDTH>
+    <VISIBLE_HEIGHT>96</VISIBLE_HEIGHT>
+    <VISIBLE_WIDTH>96</VISIBLE_WIDTH>
     <ShowInEgocentricView>True</ShowInEgocentricView>
     <EgocentricViewLimit>2</EgocentricViewLimit>
     <WorldBoundsValue>0</WorldBoundsValue>
@@ -96,139 +232,17 @@
     </Tasks>
   </World>
   <Dashboard>
-    <Properties yaxlib:realtype="System.Collections.Generic.List`1[[GoodAI.Core.Dashboard.DashboardNodeProperty, GoodAI.Platform.Core, Version=0.4.0.0, Culture=neutral, PublicKeyToken=null]]" />
+    <Properties yaxlib:realtype="System.Collections.Generic.List`1[[GoodAI.Core.Dashboard.DashboardNodePropertyBase, GoodAI.Platform.Core, Version=0.6.0.0, Culture=neutral, PublicKeyToken=null]]" />
   </Dashboard>
   <GroupedDashboard>
-    <Properties yaxlib:realtype="System.Collections.Generic.List`1[[GoodAI.Core.Dashboard.DashboardPropertyGroup, GoodAI.Platform.Core, Version=0.4.0.0, Culture=neutral, PublicKeyToken=null]]" />
+    <Properties yaxlib:realtype="System.Collections.Generic.List`1[[GoodAI.Core.Dashboard.DashboardPropertyGroup, GoodAI.Platform.Core, Version=0.6.0.0, Culture=neutral, PublicKeyToken=null]]" />
   </GroupedDashboard>
-  <Observers>
-    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
-      <ViewMode>Fit_2D</ViewMode>
-      <KeepRatio>True</KeepRatio>
-      <Window>
-        <Location X="747" Y="118" />
-        <Size Width="148" Height="213" />
-        <CameraData />
-      </Window>
-      <AutosaveSnapshop>False</AutosaveSnapshop>
-      <BilinearFiltering>False</BilinearFiltering>
-      <TargetIdentifier>12#ActionOutput</TargetIdentifier>
-      <m_nbDecimals>0</m_nbDecimals>
-      <m_xStart>0</m_xStart>
-      <m_xLength>1</m_xLength>
-      <m_yStart>0</m_yStart>
-      <m_yLength>6</m_yLength>
-    </MyMatrixObserver>
-    <MemoryBlockObserver yaxlib:realtype="GoodAI.Core.Observers.MyMemoryBlockObserver">
-      <Method>RedGreenScale</Method>
-      <Scale>Linear</Scale>
-      <Elements>2</Elements>
-      <TimeStep>0</TimeStep>
-      <ViewMode>Fit_2D</ViewMode>
-      <KeepRatio>True</KeepRatio>
-      <Window>
-        <Location X="214" Y="365" />
-        <Size Width="300" Height="300" />
-        <CameraData />
-      </Window>
-      <AutosaveSnapshop>False</AutosaveSnapshop>
-      <BilinearFiltering>False</BilinearFiltering>
-      <TargetIdentifier>6#Visual</TargetIdentifier>
-      <m_boundPolicy>MANUAL</m_boundPolicy>
-      <m_minValue>0</m_minValue>
-      <m_maxValue>1</m_maxValue>
-    </MemoryBlockObserver>
-    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
-      <ViewMode>Fit_2D</ViewMode>
-      <KeepRatio>True</KeepRatio>
-      <Window>
-        <Location X="214" Y="93" />
-        <Size Width="185" Height="250" />
-        <CameraData />
-      </Window>
-      <AutosaveSnapshop>False</AutosaveSnapshop>
-      <BilinearFiltering>False</BilinearFiltering>
-      <TargetIdentifier>6#GlobalOutput</TargetIdentifier>
-      <m_nbDecimals>2</m_nbDecimals>
-      <m_xStart>0</m_xStart>
-      <m_xLength>1</m_xLength>
-      <m_yStart>0</m_yStart>
-      <m_yLength>14</m_yLength>
-    </MyMatrixObserver>
-    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
-      <ViewMode>Fit_2D</ViewMode>
-      <KeepRatio>True</KeepRatio>
-      <Window>
-        <Location X="590" Y="111" />
-        <Size Width="139" Height="66" />
-        <CameraData />
-      </Window>
-      <AutosaveSnapshop>False</AutosaveSnapshop>
-      <BilinearFiltering>False</BilinearFiltering>
-      <TargetIdentifier>12#WorldResponse</TargetIdentifier>
-      <m_nbDecimals>0</m_nbDecimals>
-      <m_xStart>0</m_xStart>
-      <m_xLength>1</m_xLength>
-      <m_yStart>0</m_yStart>
-      <m_yLength>1</m_yLength>
-    </MyMatrixObserver>
-    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
-      <ViewMode>Fit_2D</ViewMode>
-      <KeepRatio>True</KeepRatio>
-      <Window>
-        <Location X="431" Y="105" />
-        <Size Width="151" Height="69" />
-        <CameraData />
-      </Window>
-      <AutosaveSnapshop>False</AutosaveSnapshop>
-      <BilinearFiltering>False</BilinearFiltering>
-      <TargetIdentifier>14#QueryInputSymbol</TargetIdentifier>
-      <m_nbDecimals>0</m_nbDecimals>
-      <m_xStart>0</m_xStart>
-      <m_xLength>1</m_xLength>
-      <m_yStart>0</m_yStart>
-      <m_yLength>1</m_yLength>
-    </MyMatrixObserver>
-    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
-      <ViewMode>Fit_2D</ViewMode>
-      <KeepRatio>True</KeepRatio>
-      <Window>
-        <Location X="521" Y="359" />
-        <Size Width="512" Height="230" />
-        <CameraData />
-      </Window>
-      <AutosaveSnapshop>False</AutosaveSnapshop>
-      <BilinearFiltering>False</BilinearFiltering>
-      <TargetIdentifier>14#FSMtransition</TargetIdentifier>
-      <m_nbDecimals>0</m_nbDecimals>
-      <m_xStart>0</m_xStart>
-      <m_xLength>6</m_xLength>
-      <m_yStart>0</m_yStart>
-      <m_yLength>1</m_yLength>
-    </MyMatrixObserver>
-    <MyMatrixObserver yaxlib:realtype="GoodAI.Core.Observers.MyMatrixObserver">
-      <ViewMode>Fit_2D</ViewMode>
-      <KeepRatio>True</KeepRatio>
-      <Window>
-        <Location X="1018" Y="280" />
-        <Size Width="179" Height="370" />
-        <CameraData />
-      </Window>
-      <AutosaveSnapshop>False</AutosaveSnapshop>
-      <BilinearFiltering>False</BilinearFiltering>
-      <TargetIdentifier>14#FSMoutput</TargetIdentifier>
-      <m_nbDecimals>0</m_nbDecimals>
-      <m_xStart>0</m_xStart>
-      <m_xLength>2</m_xLength>
-      <m_yStart>0</m_yStart>
-      <m_yLength>1</m_yLength>
-    </MyMatrixObserver>
-  </Observers>
-  <MemoryBlockAttributes />
+  <LoadAllNodesData>False</LoadAllNodesData>
+  <SaveAllNodesData>False</SaveAllNodesData>
   <UsedModules>
     <Module Name="GoodAI.NewModuleWithSourceDeps.dll" Version="1" />
     <Module Name="GoodAI.FSM.dll" Version="1" />
-    <Module Name="GoodAI.Platform.Core.dll" Version="10" />
+    <Module Name="GoodAI.Platform.Core.dll" Version="14" />
     <Module Name="GoodAI.BasicNodes.dll" Version="14" />
   </UsedModules>
 </Project>
